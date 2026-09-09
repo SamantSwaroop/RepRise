@@ -18,9 +18,10 @@ tested, and confirmed working before the next one starts.
 - [x] **Phase 3 — Local-first data layer.** SQLite on-device, offline workout
       CRUD, workout history tab.
 - [x] **Phase 4 — Core workout logging UI.** Previous performance, copy-previous-set,
-      notes, workout summary, polished read-only view. *(you are here)*
-- [ ] Phase 5 — Templates
-- [ ] Phase 6 — Progress dashboard & graphs
+      notes, workout summary, decimal weights, auto-complete set logging.
+- [x] **Phase 5 — Templates.** Reusable workout templates, create template,
+      start workout from template, save completed workout as template.
+- [ ] **Phase 6 — Progress dashboard & graphs.** *(next up)*
 - [ ] Phase 7 — PR detection
 - [ ] Phase 8 — Streaks & muscle visualizer
 - [ ] Phase 9 — Rest timer & notifications
@@ -95,21 +96,21 @@ pnpm dev:mobile
 # Press `i` for iOS simulator, `a` for Android, or scan the QR code with Expo Go.
 ```
 
-If you run on a physical device, edit `apps/mobile/.env` and replace
-`localhost` with your computer's LAN IP address, since the phone can't
-resolve `localhost` to your laptop.
+**Database (PostgreSQL via Docker):**
+```bash
+docker compose up -d
+```
 
-You should see a dark screen with the RepRise wordmark and tagline — that's
-the whole of Phase 0. Nothing else works yet on purpose.
+If you run on a physical device with Expo Go, edit `apps/mobile/.env` and replace
+`localhost` with your computer's LAN IP address (e.g. `192.168.1.x:4000`), so
+your phone can reach the local API server over the same Wi-Fi network.
 
-## What "done" looks like for Phase 0
+## Testing & Quality Checks
 
-- `pnpm install` completes with no errors
-- `pnpm dev:api` starts and `/api/v1/health` returns 200
-- `pnpm dev:mobile` boots the app in Expo Go/a simulator and shows the
-  RepRise placeholder screen
-- `pnpm lint` and `pnpm typecheck` run without crashing (some warnings are
-  fine — this is a fresh scaffold, not a finished app)
+```bash
+# Run TypeScript checks across all workspace packages
+pnpm typecheck
 
-Tell me what happens when you run these — especially any install or version
-errors — and we'll fix them before moving to Phase 1.
+# Run tests
+pnpm test
+```
