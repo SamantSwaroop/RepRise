@@ -1,0 +1,24 @@
+{
+  "name": "reprise",
+  "private": true,
+  "version": "0.1.0",
+  "description": "RepRise — Track every rep, beat your best.",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:mobile": "pnpm --filter @reprise/mobile start",
+    "dev:api": "pnpm --filter @reprise/api dev",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test"
+  },
+  "dependencies": {
+    "expo": "^57.0.18"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.4",
+    "typescript": "~6.0.3"
+  }
+}

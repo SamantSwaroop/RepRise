@@ -1,0 +1,19 @@
+# Not needed until Phase 2, but set up now so it's one command away.
+# Run: docker compose up -d
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: reprise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reprise
+      POSTGRES_PASSWORD: reprise
+      POSTGRES_DB: reprise
+    ports:
+      - "5432:5432"
+    volumes:
+      - reprise-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  reprise-postgres-data:
