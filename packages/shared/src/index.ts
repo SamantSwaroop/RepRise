@@ -3,3 +3,4 @@ export * from './constants';
 export * from './auth';
 export * from './exercise';
 export * from './workout';
+export * from './template';

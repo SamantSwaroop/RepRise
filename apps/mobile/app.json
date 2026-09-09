@@ -6,7 +6,6 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "backgroundColor": "#2E3440",
     "ios": {
       "bundleIdentifier": "com.yourcompany.reprise",
@@ -14,7 +13,6 @@
     },
     "android": {
       "package": "com.yourcompany.reprise",
-      "edgeToEdgeEnabled": true
     },
     "plugins": ["expo-router"],
     "experiments": {

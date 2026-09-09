@@ -77,6 +77,22 @@ export default function RootLayout() {
                 gestureEnabled: false,
               }}
             />
+            <Stack.Screen
+              name="template/[id]"
+              options={{
+                headerShown: true,
+                title: 'Template',
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="template/create"
+              options={{
+                headerShown: true,
+                title: 'New Template',
+                animation: 'slide_from_right',
+              }}
+            />
           </Stack>
         </AuthGate>
       </QueryClientProvider>
