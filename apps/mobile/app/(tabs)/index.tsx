@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, radius } from '../../src/theme/tokens';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useRouter } from 'expo-router';
@@ -19,21 +20,30 @@ export default function HomeTab() {
     router.replace('/');
   };
 
-  const handleStartWorkout = async () => {
+  const handleStartWorkout = () => {
     if (inProgressWorkout) {
-      // Resume existing in-progress workout
-      (router as any).push({ pathname: '/workout/[id]', params: { id: inProgressWorkout.id } });
+      (router as any).push({
+        pathname: '/workout/[id]',
+        params: { id: inProgressWorkout.id },
+      });
       return;
     }
-    const workout = await createWorkout.mutateAsync();
-    (router as any).push({ pathname: '/workout/[id]', params: { id: workout.id } });
+
+    createWorkout.mutate(undefined, {
+      onSuccess: (workout) => {
+        (router as any).push({
+          pathname: '/workout/[id]',
+          params: { id: workout.id },
+        });
+      },
+    });
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.greeting}>
         <Text style={styles.hello}>Hello,</Text>
-        <Text style={styles.name}>{user?.displayName ?? 'Athlete'} 👋</Text>
+        <Text style={styles.name}>{user?.displayName ?? 'Athlete'}</Text>
       </View>
 
       {/* Start / Resume Workout Button */}
@@ -42,17 +52,37 @@ export default function HomeTab() {
         onPress={handleStartWorkout}
         disabled={createWorkout.isPending}
       >
-        <Text style={styles.startBtnText}>
-          {createWorkout.isPending
-            ? 'Starting…'
-            : inProgressWorkout
-            ? '▶ Resume Workout'
-            : '+ Start Workout'}
-        </Text>
+        <View style={styles.btnRow}>
+          {inProgressWorkout ? (
+            <Ionicons name="play" size={18} color={colors.background} style={styles.btnIcon} />
+          ) : (
+            <Ionicons name="add" size={22} color={colors.background} style={styles.btnIcon} />
+          )}
+          <Text style={styles.startBtnText}>
+            {createWorkout.isPending
+              ? 'Starting…'
+              : inProgressWorkout
+              ? 'Resume Workout'
+              : 'Start Workout'}
+          </Text>
+        </View>
         {inProgressWorkout && (
           <Text style={styles.startBtnSub}>{inProgressWorkout.name}</Text>
         )}
       </Pressable>
+
+      {/* Start from Template */}
+      {!inProgressWorkout && (
+        <Pressable
+          style={({ pressed }) => [styles.templateBtn, pressed && styles.templateBtnPressed]}
+          onPress={() => (router as any).push('/(tabs)/templates')}
+        >
+          <View style={styles.btnRow}>
+            <Ionicons name="copy-outline" size={16} color={colors.accent} style={styles.btnIcon} />
+            <Text style={styles.templateBtnText}>Start from Template</Text>
+          </View>
+        </Pressable>
+      )}
 
       {/* Recent Workouts */}
       <View style={styles.recentHeader}>
@@ -152,6 +182,32 @@ const styles = StyleSheet.create({
     fontSize: typography.caption.size,
     opacity: 0.8,
     marginTop: 2,
+  },
+  templateBtn: {
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.card,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+    marginTop: -spacing.md,
+  },
+  templateBtnPressed: {
+    backgroundColor: colors.accent + '11',
+    opacity: 0.9,
+  },
+  templateBtnText: {
+    color: colors.accent,
+    fontSize: typography.body.size,
+    fontWeight: '600',
+  },
+  btnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnIcon: {
+    marginRight: spacing.xs,
   },
   recentHeader: {
     flexDirection: 'row',

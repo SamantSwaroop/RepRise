@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { Workout, WorkoutStatus } from '@reprise/shared';
 import { colors, spacing, typography, radius } from '../theme/tokens';
 
@@ -43,7 +44,8 @@ export function WorkoutCard({ workout, onPress }: WorkoutCardProps) {
       </View>
 
       <View style={styles.meta}>
-        <Text style={styles.metaText}>📅 {dateStr} • {timeStr}</Text>
+        <Ionicons name="calendar-outline" size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
+        <Text style={styles.metaText}>{dateStr} • {timeStr}</Text>
       </View>
     </Pressable>
   );

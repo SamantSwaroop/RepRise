@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { Exercise } from '@reprise/shared';
 import { colors, spacing, typography, radius } from '../theme/tokens';
 
@@ -56,7 +57,7 @@ export function ExerciseCard({ exercise, onPress, onDelete }: ExerciseCardProps)
                 style={({ pressed }) => [styles.deleteBtn, pressed && styles.deleteBtnPressed]}
                 onPress={onDelete}
               >
-                <Text style={styles.deleteText}>🗑</Text>
+                <Ionicons name="trash-outline" size={14} color={colors.danger} />
               </Pressable>
             )}
           </View>

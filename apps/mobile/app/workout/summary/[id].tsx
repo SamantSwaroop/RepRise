@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, radius } from '../../../src/theme/tokens';
 import { useWorkout } from '../../../src/hooks/useWorkouts';
 import { useExercises } from '../../../src/hooks/useExercises';
@@ -52,7 +53,9 @@ export default function WorkoutSummaryScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         {/* Celebration */}
-        <Text style={styles.emoji}>💪</Text>
+        <View style={styles.celebrationBadge}>
+          <Ionicons name="checkmark-circle-outline" size={38} color={colors.success} />
+        </View>
         <Text style={styles.title}>Workout Complete!</Text>
         <Text style={styles.workoutName}>{workout.name}</Text>
 
@@ -139,9 +142,16 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxxl,
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: 56,
-    marginBottom: spacing.md,
+  celebrationBadge: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: colors.success + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.success + '33',
   },
   title: {
     color: colors.success,
