@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import type { Exercise, WorkoutSet } from '@reprise/shared';
 import { colors, spacing, typography, radius } from '../../src/theme/tokens';
 import {
@@ -73,7 +74,7 @@ function ExerciseBlock({
               );
             }}
           >
-            <Text style={styles.removeExercise}>✕ Remove</Text>
+            <Text style={styles.removeExercise}>Remove</Text>
           </Pressable>
         )}
       </View>
@@ -87,8 +88,7 @@ function ExerciseBlock({
         )}
         <Text style={[styles.colHeader, { flex: 1 }]}>Weight</Text>
         <Text style={[styles.colHeader, { flex: 1 }]}>Reps</Text>
-        <Text style={[styles.colHeader, { flex: 0.7 }]}>RPE</Text>
-        {isActive && <View style={{ width: 52 }} />}
+        {isActive && <View style={{ width: 24 }} />}
       </View>
 
       {/* Sets */}
@@ -110,7 +110,12 @@ function ExerciseBlock({
                       id: set.id,
                       weightKg: prevSet.weightKg,
                       reps: prevSet.reps,
-                      rpe: prevSet.rpe,
+                      isCompleted: Boolean(
+                        prevSet.weightKg != null &&
+                        prevSet.weightKg >= 0 &&
+                        prevSet.reps != null &&
+                        prevSet.reps > 0,
+                      ),
                     })
                 : undefined
             }
@@ -380,9 +385,15 @@ export default function WorkoutDetailScreen() {
               </Text>
             </View>
             {isActive && elapsed ? (
-              <Text style={styles.timer}>⏱ {elapsed}</Text>
+              <View style={styles.headerTimerRow}>
+                <Ionicons name="time-outline" size={14} color={colors.textMuted} style={{ marginRight: 4 }} />
+                <Text style={styles.timer}>{elapsed}</Text>
+              </View>
             ) : (
-              <Text style={styles.dateText}>📅 {dateStr} • {timeStr}</Text>
+              <View style={styles.headerTimerRow}>
+                <Ionicons name="calendar-outline" size={14} color={colors.textMuted} style={{ marginRight: 4 }} />
+                <Text style={styles.dateText}>{dateStr} • {timeStr}</Text>
+              </View>
             )}
           </View>
         </View>
@@ -420,7 +431,7 @@ export default function WorkoutDetailScreen() {
           >
             <Text style={styles.notesToggleText}>
               {showNotes ? '▾ Notes' : '▸ Notes'}
-              {workout.notes ? ' ✏️' : ''}
+              {workout.notes ? ' (added)' : ''}
             </Text>
           </Pressable>
         ) : workout.notes ? (
@@ -501,7 +512,7 @@ export default function WorkoutDetailScreen() {
                 ]}
                 onPress={handleCompleteWorkout}
               >
-                <Text style={styles.completeBtnText}>✓ Complete Workout</Text>
+                <Text style={styles.completeBtnText}>Complete Workout</Text>
               </Pressable>
 
               <Pressable
@@ -515,6 +526,24 @@ export default function WorkoutDetailScreen() {
                 <Text style={styles.abandonBtnText}>Abandon</Text>
               </Pressable>
             </>
+          )}
+
+          {isCompleted && workout.exercises.length > 0 && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionBtn,
+                styles.saveTemplateBtn,
+                pressed && styles.actionBtnPressed,
+              ]}
+              onPress={() =>
+                (router as any).push({
+                  pathname: '/template/create',
+                  params: { fromWorkout: workout.id },
+                })
+              }
+            >
+              <Text style={styles.saveTemplateBtnText}>Save as Template</Text>
+            </Pressable>
           )}
 
           <Pressable
@@ -596,6 +625,10 @@ const styles = StyleSheet.create({
     fontSize: typography.body.size,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
+  },
+  headerTimerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   dateText: {
     color: colors.textMuted,
@@ -810,6 +843,16 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: {
     color: colors.danger,
+    fontSize: typography.body.size,
+    fontWeight: '600',
+  },
+  saveTemplateBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  saveTemplateBtnText: {
+    color: colors.accent,
     fontSize: typography.body.size,
     fontWeight: '600',
   },
