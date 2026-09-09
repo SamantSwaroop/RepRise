@@ -73,11 +73,20 @@ export async function api<T = any>(path: string, options: FetchOptions = {}): Pr
 
   const url = path.startsWith('http') ? path : `${API_URL}${path}`;
 
-  let res = await fetch(url, {
-    ...rest,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...rest,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (err: any) {
+    throw new ApiError(
+      0,
+      'network_error',
+      `Cannot connect to server at ${API_URL}. Check that the API server is running and accessible.`,
+    );
+  }
 
   // Auto-refresh on 401
   if (res.status === 401 && !skipAuth) {
@@ -96,15 +105,28 @@ export async function api<T = any>(path: string, options: FetchOptions = {}): Pr
       if (newToken) {
         headers['Authorization'] = `Bearer ${newToken}`;
       }
-      res = await fetch(url, {
-        ...rest,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      });
+      try {
+        res = await fetch(url, {
+          ...rest,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+      } catch (err: any) {
+        throw new ApiError(
+          0,
+          'network_error',
+          `Cannot connect to server at ${API_URL}. Check that the API server is running and accessible.`,
+        );
+      }
     }
   }
 
-  const json = await res.json();
+  let json: any;
+  try {
+    json = await res.json();
+  } catch {
+    throw new ApiError(res.status, 'invalid_response', 'Server returned an unparseable response.');
+  }
 
   if (!res.ok) {
     const errorMessage = json.error?.message ?? 'Something went wrong';
