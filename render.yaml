@@ -29,6 +29,9 @@ services:
         source: /*
         destination: /index.html
     headers:
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
       - path: /*
         name: Cross-Origin-Opener-Policy
         value: same-origin

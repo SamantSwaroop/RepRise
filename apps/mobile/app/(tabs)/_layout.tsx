@@ -37,13 +37,14 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarItemStyle: {
+          justifyContent: 'center',
           paddingTop: 2,
           paddingBottom: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 10.5,
+          fontSize: 10,
           fontWeight: '600',
-          marginTop: 1,
+          marginTop: -2,
         },
       }}
     >
