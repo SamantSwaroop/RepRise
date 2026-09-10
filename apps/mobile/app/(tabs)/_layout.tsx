@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography } from '../../src/theme/tokens';
+import { SyncStatusBadge } from '../../src/components/SyncStatusBadge';
 
 export default function TabLayout() {
   return (
@@ -10,6 +11,7 @@ export default function TabLayout() {
         headerTintColor: colors.textPrimary,
         headerShadowVisible: false,
         headerTitleStyle: { fontWeight: '600', fontSize: typography.h2.size },
+        headerRight: () => <SyncStatusBadge />,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
@@ -39,6 +41,15 @@ export default function TabLayout() {
           title: 'Workouts',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="barbell-outline" size={size ?? 22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="progress"
+        options={{
+          title: 'Progress',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="trending-up-outline" size={size ?? 22} color={color} />
           ),
         }}
       />

@@ -18,7 +18,7 @@ exercisesRouter.get('/', async (req, res) => {
     const userId = req.user!.id;
     const search = req.query.search as string | undefined;
 
-    let query = db.select().from(exercises);
+    const query = db.select().from(exercises);
 
     const conditions = [
       or(isNull(exercises.userId), eq(exercises.userId, userId)),

@@ -13,5 +13,10 @@ module.exports = {
   plugins: ['@typescript-eslint'],
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
   env: { es2022: true, node: true },
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-namespace': ['error', { allowDeclarations: true }],
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+  },
   ignorePatterns: ['dist', 'node_modules', '.expo', 'apps/mobile/**'],
 };

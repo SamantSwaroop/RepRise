@@ -1,9 +1,16 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, spacing, typography, radius } from '../../src/theme/tokens';
+import { useAuthStore } from '../../src/stores/authStore';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const continueAsGuest = useAuthStore((s) => s.continueAsGuest);
+
+  const handleGuest = async () => {
+    await continueAsGuest();
+    router.replace('/(tabs)');
+  };
 
   return (
     <View style={styles.container}>
@@ -26,6 +33,13 @@ export default function WelcomeScreen() {
           onPress={() => router.push('/(auth)/login')}
         >
           <Text style={styles.secondaryButtonText}>Log In</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.guestButton, pressed && styles.buttonPressed]}
+          onPress={handleGuest}
+        >
+          <Text style={styles.guestButtonText}>Continue as Guest (Offline)</Text>
         </Pressable>
       </View>
     </View>
@@ -91,5 +105,17 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: typography.body.size,
     fontWeight: '600',
+  },
+  guestButton: {
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+  },
+  guestButtonText: {
+    color: colors.textMuted,
+    fontSize: typography.caption.size,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 });

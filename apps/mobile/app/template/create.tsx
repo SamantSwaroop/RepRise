@@ -23,6 +23,7 @@ import {
 import { useWorkout } from '../../src/hooks/useWorkouts';
 import { useExercises } from '../../src/hooks/useExercises';
 import { ExercisePicker } from '../../src/components/ExercisePicker';
+import { toast } from '../../src/stores/toastStore';
 import { TemplateExerciseRow } from '../../src/components/TemplateExerciseRow';
 
 /**
@@ -69,9 +70,8 @@ export default function CreateTemplateScreen() {
         workout: sourceWorkout as Workout,
         name: templateName,
       });
-      Alert.alert('Template Saved', `"${templateName}" has been saved.`, [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      toast.success(`Template "${templateName}" saved`);
+      router.back();
     } catch (err) {
       Alert.alert('Error', 'Failed to create template.');
     }
@@ -94,6 +94,7 @@ export default function CreateTemplateScreen() {
           defaultSets: pe.defaultSets,
         });
       }
+      toast.success(`Template "${templateName}" created`);
       // Navigate to the new template detail
       (router as any).replace({
         pathname: '/template/[id]',
@@ -137,7 +138,12 @@ export default function CreateTemplateScreen() {
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           <Text style={styles.sectionTitle}>Save as Template</Text>
           <Text style={styles.subtitle}>
             This will save the exercises from "{sourceWorkout.name}" as a reusable template.
@@ -197,7 +203,12 @@ export default function CreateTemplateScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <Text style={styles.sectionTitle}>Create Template</Text>
 
         <Text style={styles.label}>Template Name</Text>

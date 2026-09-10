@@ -1,10 +1,14 @@
 import { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, SectionList, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, SectionList, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import type { Workout, WorkoutStatus } from '@reprise/shared';
 import { colors, spacing, typography, radius } from '../../src/theme/tokens';
 import { useWorkouts } from '../../src/hooks/useWorkouts';
+import { useWorkoutPRCounts } from '../../src/hooks/usePRs';
 import { WorkoutCard } from '../../src/components/WorkoutCard';
+import { WorkoutCardSkeleton } from '../../src/components/WorkoutCardSkeleton';
+import { syncNow } from '../../src/lib/syncEngine';
 
 const FILTER_OPTIONS: { label: string; value: WorkoutStatus | 'all' }[] = [
   { label: 'All', value: 'all' },
@@ -32,7 +36,18 @@ function formatSectionDate(dateStr: string): string {
 export default function WorkoutsTab() {
   const router = useRouter();
   const { data: workouts, isLoading } = useWorkouts();
+  const { data: prCounts } = useWorkoutPRCounts();
   const [filter, setFilter] = useState<WorkoutStatus | 'all'>('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await syncNow({ force: true });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const sections = useMemo(() => {
     if (!workouts) return [];
@@ -79,8 +94,10 @@ export default function WorkoutsTab() {
       </View>
 
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.accent} />
+        <View style={styles.skeletonContainer}>
+          <WorkoutCardSkeleton />
+          <WorkoutCardSkeleton />
+          <WorkoutCardSkeleton />
         </View>
       ) : (
         <SectionList
@@ -89,22 +106,36 @@ export default function WorkoutsTab() {
           renderItem={({ item }) => (
             <WorkoutCard
               workout={item}
+              prCount={prCounts?.[item.id]}
               onPress={() =>
                 (router as any).push({ pathname: '/workout/[id]', params: { id: item.id } })
               }
             />
           )}
-          renderSectionHeader={({ section }) => (
-            <Text style={styles.sectionHeader}>{section.title}</Text>
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.sectionHeader}>{title}</Text>
           )}
-          contentContainerStyle={styles.list}
-          stickySectionHeadersEnabled={false}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
           ListEmptyComponent={
-            <View style={styles.center}>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="barbell-outline" size={32} color={colors.textMuted} />
+              </View>
+              <Text style={styles.emptyTitle}>
+                {filter === 'all' ? 'No Workouts Logged' : `No ${filter.replace('_', ' ')} workouts`}
+              </Text>
               <Text style={styles.emptyText}>
                 {filter === 'all'
-                  ? 'No workouts yet. Start your first workout from the Home tab!'
-                  : `No ${filter.replace('_', ' ')} workouts`}
+                  ? 'Start logging your exercises and sets to see your workout history here.'
+                  : `You do not have any ${filter.replace('_', ' ')} workout sessions.`}
               </Text>
             </View>
           }
@@ -146,7 +177,7 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '600',
   },
-  list: {
+  listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: 100,
   },
@@ -159,16 +190,37 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
-  center: {
-    flex: 1,
+  skeletonContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
+    paddingTop: 80,
+    paddingHorizontal: spacing.xl,
+  },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.h2.size,
+    fontWeight: typography.h2.weight,
+    marginBottom: spacing.xs,
   },
   emptyText: {
     color: colors.textMuted,
     fontSize: typography.body.size,
     textAlign: 'center',
-    paddingHorizontal: spacing.xl,
+    lineHeight: 22,
   },
 });

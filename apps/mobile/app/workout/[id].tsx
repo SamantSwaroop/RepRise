@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import type { Exercise, WorkoutSet } from '@reprise/shared';
+import type { Exercise, WorkoutSet, ExerciseBaseline } from '@reprise/shared';
+import { detectPRsForSet } from '@reprise/shared';
 import { colors, spacing, typography, radius } from '../../src/theme/tokens';
 import {
   useWorkout,
@@ -24,8 +25,13 @@ import {
   usePreviousSets,
 } from '../../src/hooks/useWorkouts';
 import { useExercises } from '../../src/hooks/useExercises';
+import { useExerciseBaselines } from '../../src/hooks/usePRs';
 import { SetRow } from '../../src/components/SetRow';
 import { ExercisePicker } from '../../src/components/ExercisePicker';
+import { RestTimerCard } from '../../src/components/RestTimerCard';
+import { useRestTimerStore } from '../../src/stores/restTimerStore';
+import { useSettingsStore } from '../../src/stores/settingsStore';
+import { toast } from '../../src/stores/toastStore';
 
 // ─── Sub-component: exercise block with previous data ──────────────
 
@@ -36,6 +42,7 @@ function ExerciseBlock({
   exerciseName,
   sets,
   isActive,
+  baseline,
   onRemove,
   onUpsertSet,
   onDeleteSet,
@@ -46,11 +53,13 @@ function ExerciseBlock({
   exerciseName: string;
   sets: WorkoutSet[];
   isActive: boolean;
+  baseline?: ExerciseBaseline;
   onRemove: () => void;
   onUpsertSet: (data: any) => void;
   onDeleteSet: (data: any) => void;
 }) {
   const { data: previousSets } = usePreviousSets(exerciseId, workoutId);
+  const weightUnit = useSettingsStore((s) => s.weightUnit);
 
   return (
     <View style={styles.exerciseBlock}>
@@ -86,7 +95,7 @@ function ExerciseBlock({
         {isActive && previousSets && previousSets.length > 0 && (
           <Text style={[styles.colHeader, { width: 56 }]}>Prev</Text>
         )}
-        <Text style={[styles.colHeader, { flex: 1 }]}>Weight</Text>
+        <Text style={[styles.colHeader, { flex: 1 }]}>{weightUnit === 'lbs' ? 'Lbs' : 'Weight'}</Text>
         <Text style={[styles.colHeader, { flex: 1 }]}>Reps</Text>
         {isActive && <View style={{ width: 24 }} />}
       </View>
@@ -94,6 +103,7 @@ function ExerciseBlock({
       {/* Sets */}
       {sets.map((set) => {
         const prevSet = previousSets?.find((ps) => ps.setNumber === set.setNumber) ?? null;
+        const prTypes = detectPRsForSet(set, baseline);
 
         return (
           <SetRow
@@ -101,6 +111,7 @@ function ExerciseBlock({
             set={set}
             readOnly={!isActive}
             previousSet={isActive ? prevSet : undefined}
+            prTypes={prTypes}
             onCopyPrevious={
               prevSet
                 ? () =>
@@ -158,6 +169,12 @@ export default function WorkoutDetailScreen() {
   const { data: workout, isLoading } = useWorkout(id!);
   const { data: allExercises } = useExercises();
 
+  const exerciseIds = useMemo(
+    () => (workout?.exercises ?? []).map((we) => we.exerciseId),
+    [workout?.exercises],
+  );
+  const { data: baselines } = useExerciseBaselines(exerciseIds, id);
+
   const exerciseMap = new Map(
     (allExercises ?? []).map((e) => [e.id, e]),
   );
@@ -169,6 +186,9 @@ export default function WorkoutDetailScreen() {
   const upsertSetMutation = useUpsertSet();
   const deleteSetMutation = useDeleteSet();
 
+  const { stopTimer } = useRestTimerStore();
+  const weightUnit = useSettingsStore((s) => s.weightUnit);
+
   const [showPicker, setShowPicker] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
@@ -178,6 +198,13 @@ export default function WorkoutDetailScreen() {
 
   const isActive = workout?.status === 'in_progress';
   const isCompleted = workout?.status === 'completed';
+
+  const handleUpsertSet = useCallback(
+    (data: any) => {
+      upsertSetMutation.mutate(data);
+    },
+    [upsertSetMutation],
+  );
 
   // Live timer for in-progress workouts
   useEffect(() => {
@@ -242,11 +269,13 @@ export default function WorkoutDetailScreen() {
       {
         text: 'Complete',
         onPress: () => {
+          stopTimer();
           const now = new Date().toISOString();
           updateWorkout.mutate(
             { id: workout.id, status: 'completed', completedAt: now },
             {
               onSuccess: () => {
+                toast.success('Workout completed! Keep up the momentum.');
                 // Navigate to summary screen
                 (router as any).replace({
                   pathname: '/workout/summary/[id]',
@@ -268,6 +297,7 @@ export default function WorkoutDetailScreen() {
         text: 'Abandon',
         style: 'destructive',
         onPress: () => {
+          stopTimer();
           updateWorkout.mutate({ id: workout.id, status: 'abandoned' });
         },
       },
@@ -316,13 +346,14 @@ export default function WorkoutDetailScreen() {
     const h = Math.floor(durationMin / 60);
     const m = durationMin % 60;
 
+    const displayVol = weightUnit === 'lbs' ? totalVolume * 2.20462 : totalVolume;
     return {
       duration: h > 0 ? `${h}h ${m}m` : `${m}m`,
       exercises: workout.exercises.length,
       sets: `${completedSets}/${totalSets}`,
-      volume: totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : String(Math.round(totalVolume)),
+      volume: displayVol >= 1000 ? `${(displayVol / 1000).toFixed(1)}k ${weightUnit}` : `${Math.round(displayVol)} ${weightUnit}`,
     };
-  }, [workout, isActive]);
+  }, [workout, isActive, weightUnit]);
 
   if (isLoading || !workout) {
     return (
@@ -352,7 +383,12 @@ export default function WorkoutDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Header: name + status + timer */}
         <View style={styles.header}>
           {editingName ? (
@@ -425,35 +461,71 @@ export default function WorkoutDetailScreen() {
 
         {/* Notes section */}
         {isActive ? (
-          <Pressable
-            style={styles.notesToggle}
-            onPress={() => setShowNotes(!showNotes)}
-          >
-            <Text style={styles.notesToggleText}>
-              {showNotes ? '▾ Notes' : '▸ Notes'}
-              {workout.notes ? ' (added)' : ''}
-            </Text>
-          </Pressable>
+          <View style={styles.notesCard}>
+            <Pressable
+              style={styles.notesHeader}
+              onPress={() => setShowNotes(!showNotes)}
+            >
+              <View style={styles.notesHeaderLeft}>
+                <View style={[styles.notesIconBox, workout.notes ? styles.notesIconBoxActive : null]}>
+                  <Ionicons
+                    name="document-text-outline"
+                    size={16}
+                    color={workout.notes ? colors.accent : colors.textMuted}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.notesTitleRow}>
+                    <Text style={styles.notesTitle}>Workout Notes</Text>
+                    {workout.notes ? (
+                      <View style={styles.notesBadge}>
+                        <Text style={styles.notesBadgeText}>Added</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  {!showNotes && workout.notes ? (
+                    <Text style={styles.notesPreview} numberOfLines={1}>
+                      {workout.notes}
+                    </Text>
+                  ) : !showNotes ? (
+                    <Text style={styles.notesSub}>Tap to add workout notes or remarks</Text>
+                  ) : null}
+                </View>
+              </View>
+
+              <Ionicons
+                name={showNotes ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color={colors.textMuted}
+              />
+            </Pressable>
+
+            {showNotes && (
+              <TextInput
+                style={styles.notesInput}
+                value={notesValue}
+                onChangeText={setNotesValue}
+                onBlur={handleNotesSave}
+                placeholder="Write notes, thoughts, or observations for this workout…"
+                placeholderTextColor={colors.border}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            )}
+          </View>
         ) : workout.notes ? (
           <View style={styles.notesReadOnly}>
-            <Text style={styles.notesLabel}>Notes</Text>
+            <View style={styles.notesReadOnlyHeader}>
+              <Ionicons name="document-text-outline" size={16} color={colors.accent} />
+              <Text style={styles.notesReadOnlyTitle}>Workout Notes</Text>
+            </View>
             <Text style={styles.notesText}>{workout.notes}</Text>
           </View>
         ) : null}
 
-        {isActive && showNotes && (
-          <TextInput
-            style={styles.notesInput}
-            value={notesValue}
-            onChangeText={setNotesValue}
-            onBlur={handleNotesSave}
-            placeholder="Add workout notes…"
-            placeholderTextColor={colors.border}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
-        )}
+        {/* Rest Timer Card for In-Progress Workouts */}
+        {isActive && <RestTimerCard />}
 
         {/* Exercises */}
         {workout.exercises.length === 0 ? (
@@ -475,13 +547,14 @@ export default function WorkoutDetailScreen() {
               exerciseName={exerciseMap.get(we.exerciseId)?.name ?? 'Exercise'}
               sets={we.sets}
               isActive={isActive}
+              baseline={baselines?.[we.exerciseId]}
               onRemove={() =>
                 removeExercise.mutate({
                   workoutExerciseId: we.id,
                   workoutId: workout.id,
                 })
               }
-              onUpsertSet={(data: any) => upsertSetMutation.mutate(data)}
+              onUpsertSet={(data: any) => handleUpsertSet(data)}
               onDeleteSet={(data: any) => deleteSetMutation.mutate(data)}
             />
           ))
@@ -667,39 +740,98 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border + '66',
   },
   // ─── Notes ─────────────────────────────────────────────────────
-  notesToggle: {
+  notesCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  notesToggleText: {
-    color: colors.textMuted,
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  notesHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  notesIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.control,
+    backgroundColor: colors.surfaceRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notesIconBoxActive: {
+    backgroundColor: colors.accent + '22',
+  },
+  notesTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  notesTitle: {
+    fontSize: typography.body.size,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  notesBadge: {
+    backgroundColor: colors.accent + '22',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  notesBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  notesSub: {
     fontSize: typography.caption.size,
-    fontWeight: '600',
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  notesPreview: {
+    fontSize: typography.caption.size,
+    color: colors.accent,
+    marginTop: 2,
+    maxWidth: 240,
   },
   notesInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radius.control,
     padding: spacing.md,
     color: colors.textPrimary,
     fontSize: typography.body.size,
-    minHeight: 60,
+    minHeight: 80,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.lg,
+    marginTop: spacing.sm,
   },
   notesReadOnly: {
     backgroundColor: colors.surface,
-    borderRadius: radius.control,
+    borderRadius: radius.card,
     padding: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  notesLabel: {
-    color: colors.textMuted,
-    fontSize: typography.caption.size,
-    fontWeight: '600',
+  notesReadOnlyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     marginBottom: spacing.xs,
+  },
+  notesReadOnlyTitle: {
+    fontSize: typography.caption.size,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   notesText: {
     color: colors.textSecondary,

@@ -21,15 +21,34 @@ tested, and confirmed working before the next one starts.
       notes, workout summary, decimal weights, auto-complete set logging.
 - [x] **Phase 5 — Templates.** Reusable workout templates, create template,
       start workout from template, save completed workout as template.
-- [ ] **Phase 6 — Progress dashboard & graphs.** *(next up)*
-- [ ] Phase 7 — PR detection
-- [ ] Phase 8 — Streaks & muscle visualizer
-- [ ] Phase 9 — Rest timer & notifications
-- [ ] Phase 10 — Offline sync engine
-- [ ] Phase 11 — Settings, units, data export
-- [ ] Phase 12 — Polish & animation
-- [ ] Phase 13 — Test hardening
-- [ ] Phase 14 — Store builds & deployment
+- [x] **Phase 6 — Progress dashboard & graphs.** Lifetime & weekly stats,
+      weekly volume bar charts, estimated 1RM / max weight progression line graphs.
+- [x] **Phase 7 — PR detection.** Real-time Est. 1RM & Heaviest Weight PR detection,
+      set row badges, celebratory summary breakdown, history badges, and all-time records showcase.
+- [x] **Phase 8 — Streaks & muscle visualizer.** Weekly consistency streak tracker,
+      7-day active days strip, 12-week consistency heatmap, and interactive SVG
+      anatomical muscle visualizer (Anterior & Posterior) with volume distribution.
+- [x] **Phase 9 — Rest timer & notifications.** In-workout rest timer card,
+      auto-start on set completion, drift-free background timer, +30s/-15s adjustments,
+      haptic vibrations, local push notifications, and global floating mini-timer bar.
+- [x] **Phase 10 — Offline sync engine.** Bi-directional sync engine, SQLite outbox
+      mutation queue, local exercises cache, NetInfo online/offline monitoring,
+      LWW conflict resolution, tombstones, header sync status pill, and pull-to-refresh.
+- [x] **Phase 11 — Settings, units, data export.** Unit preferences system
+      (Metric `kg` vs Imperial `lbs`, `km` vs `miles`), canonical storage in `kg`,
+      RFC-4180 CSV export and complete JSON device backups with native share sheet,
+      dedicated Nord-themed settings screen (`/settings`), rest timer duration presets & toggles.
+- [x] **Phase 12 — Polish & animation.** Spring-animated checkmark set completion,
+      subtle PR gold pulse animation, workout completion celebratory entrance & haptics,
+      rest timer progress bar animation with 10s warning pulse, global floating in-app
+      toast system, shimmering skeleton loaders, tabular numbers alignment, and keyboard dismissal.
+- [x] **Phase 13 — Test hardening.** Supertest integration suites for Express API endpoints,
+      Jest test runner with native module mocks for Expo client, comprehensive test coverage for
+      Zustand stores (settings, timer, toast, sync), RFC-4180 export engine, and shared Zod
+- [x] **Phase 14 — Store builds & deployment.** Production multi-stage Docker containerization,
+      EAS build & submit profiles (Android APK/AAB & iOS TestFlight/App Store), high-resolution Nord
+      branding assets, automated CI build verification, and complete production deployment runbook (see [DEPLOYMENT.md](DEPLOYMENT.md)).
+
 
 ## Project structure
 
@@ -113,4 +132,27 @@ pnpm typecheck
 
 # Run tests
 pnpm test
+
+# Run linter
+pnpm lint
 ```
+
+## Production Deployment & Store Builds
+
+For complete production guides, see **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+```bash
+# Build backend API
+pnpm --filter @reprise/shared build
+pnpm --filter @reprise/api build
+
+# Run production containers (API + PostgreSQL)
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Build Android preview APK (direct device install)
+cd apps/mobile && pnpm build:preview:android
+
+# Build production app bundles (Google Play .aab & App Store .ipa)
+cd apps/mobile && pnpm build:production
+```
+

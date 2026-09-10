@@ -81,5 +81,35 @@ async function runMigrations(db: SQLite.SQLiteDatabase) {
 
     CREATE INDEX IF NOT EXISTS idx_templates_user ON templates(user_id);
     CREATE INDEX IF NOT EXISTS idx_te_template ON template_exercises(template_id);
+
+    CREATE TABLE IF NOT EXISTS exercises (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      muscle_group TEXT NOT NULL,
+      equipment TEXT,
+      user_id TEXT,
+      default_sets INTEGER NOT NULL DEFAULT 3,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_exercises_user ON exercises(user_id);
+    CREATE INDEX IF NOT EXISTS idx_exercises_name ON exercises(name);
+
+    CREATE TABLE IF NOT EXISTS sync_queue (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      operation TEXT NOT NULL,
+      payload TEXT,
+      created_at TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_sync_queue_user ON sync_queue(user_id, created_at ASC);
+
+    CREATE TABLE IF NOT EXISTS sync_meta (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
+    );
   `);
 }

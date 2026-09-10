@@ -1,15 +1,46 @@
-import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { displayWeight, LBS_PER_KG } from '@reprise/shared';
 import { colors, spacing, typography, radius } from '../../../src/theme/tokens';
 import { useWorkout } from '../../../src/hooks/useWorkouts';
 import { useExercises } from '../../../src/hooks/useExercises';
+import { useWorkoutPRs } from '../../../src/hooks/usePRs';
+import { useSettingsStore } from '../../../src/stores/settingsStore';
+import { toast } from '../../../src/stores/toastStore';
 
 export default function WorkoutSummaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: workout, isLoading } = useWorkout(id!);
   const { data: allExercises } = useExercises();
+  const { data: prs } = useWorkoutPRs(id);
+  const weightUnit = useSettingsStore((s) => s.weightUnit);
+
+  const badgeScale = useRef(new Animated.Value(0.3)).current;
+  const contentFade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (workout) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Animated.parallel([
+        Animated.spring(badgeScale, {
+          toValue: 1,
+          tension: 180,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentFade, {
+          toValue: 1,
+          duration: 450,
+          delay: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [workout]);
 
   const exerciseMap = new Map(
     (allExercises ?? []).map((e) => [e.id, e]),
@@ -40,6 +71,7 @@ export default function WorkoutSummaryScreen() {
       }, 0),
     0,
   );
+  const displayVol = weightUnit === 'lbs' ? totalVolume * LBS_PER_KG : totalVolume;
 
   const startTime = new Date(workout.startedAt);
   const endTime = workout.completedAt ? new Date(workout.completedAt) : new Date();
@@ -53,14 +85,14 @@ export default function WorkoutSummaryScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         {/* Celebration */}
-        <View style={styles.celebrationBadge}>
+        <Animated.View style={[styles.celebrationBadge, { transform: [{ scale: badgeScale }] }]}>
           <Ionicons name="checkmark-circle-outline" size={38} color={colors.success} />
-        </View>
+        </Animated.View>
         <Text style={styles.title}>Workout Complete!</Text>
         <Text style={styles.workoutName}>{workout.name}</Text>
 
         {/* Stats grid */}
-        <View style={styles.statsGrid}>
+        <Animated.View style={[styles.statsGrid, { opacity: contentFade }]}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{durationStr}</Text>
             <Text style={styles.statLabel}>Duration</Text>
@@ -75,13 +107,66 @@ export default function WorkoutSummaryScreen() {
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
-              {totalVolume >= 1000
-                ? `${(totalVolume / 1000).toFixed(1)}k`
-                : Math.round(totalVolume)}
+              {displayVol >= 1000
+                ? `${(displayVol / 1000).toFixed(1)}k`
+                : Math.round(displayVol)}
             </Text>
-            <Text style={styles.statLabel}>Volume (kg)</Text>
+            <Text style={styles.statLabel}>Volume ({weightUnit})</Text>
           </View>
-        </View>
+        </Animated.View>
+
+        {/* PRs Broken Celebration */}
+        {prs && prs.length > 0 && (
+          <View style={styles.prSection}>
+            <View style={styles.prHeader}>
+              <View style={styles.prIconContainer}>
+                <Ionicons name="trophy" size={20} color="#EBCB8B" />
+              </View>
+              <View>
+                <Text style={styles.prSectionTitle}>
+                  {prs.length} Personal {prs.length === 1 ? 'Record' : 'Records'} Broken!
+                </Text>
+                <Text style={styles.prSectionSubtitle}>
+                  Progressive overload milestone achieved
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.prList}>
+              {prs.map((pr, idx) => {
+                const is1RM = pr.type === '1rm';
+                const prVal = displayWeight(pr.value, weightUnit);
+                const prWeight = displayWeight(pr.weightKg, weightUnit);
+                const prImp = pr.improvement != null ? displayWeight(pr.improvement, weightUnit) : null;
+                return (
+                  <View key={`${pr.exerciseId}-${pr.type}-${idx}`} style={styles.prCard}>
+                    <View style={styles.prCardTop}>
+                      <Text style={styles.prExerciseName}>{pr.exerciseName}</Text>
+                      <View style={styles.prTypePill}>
+                        <Text style={styles.prTypePillText}>
+                          {is1RM ? 'Est. 1RM' : 'Heaviest Weight'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.prCardDetails}>
+                      <Text style={styles.prValue}>{prVal} {weightUnit}</Text>
+                      {prImp != null && prImp > 0 && (
+                        <View style={styles.prImprovementBadge}>
+                          <Ionicons name="arrow-up" size={10} color="#A3BE8C" />
+                          <Text style={styles.prImprovementText}>+{prImp} {weightUnit}</Text>
+                        </View>
+                      )}
+                      <Text style={styles.prSetDetail}>
+                        ({prWeight} {weightUnit} × {pr.reps} reps)
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         {/* Exercise breakdown */}
         <View style={styles.breakdownSection}>
@@ -93,6 +178,7 @@ export default function WorkoutSummaryScreen() {
               .filter((s) => s.isCompleted && s.weightKg && s.reps)
               .sort((a, b) => (b.weightKg! * b.reps!) - (a.weightKg! * a.reps!))
               [0];
+            const bestSetWeight = bestSet ? displayWeight(bestSet.weightKg, weightUnit) : null;
 
             return (
               <View key={we.id} style={styles.breakdownRow}>
@@ -247,5 +333,97 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontSize: typography.body.size,
     fontWeight: '700',
+  },
+  prSection: {
+    width: '100%',
+    backgroundColor: '#EBCB8B10',
+    borderColor: '#EBCB8B44',
+    borderWidth: 1,
+    borderRadius: radius.card,
+    padding: spacing.lg,
+    marginBottom: spacing.xxl,
+  },
+  prHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  prIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EBCB8B22',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prSectionTitle: {
+    color: '#EBCB8B',
+    fontSize: typography.body.size,
+    fontWeight: '700',
+  },
+  prSectionSubtitle: {
+    color: colors.textMuted,
+    fontSize: typography.caption.size,
+  },
+  prList: {
+    gap: spacing.sm,
+  },
+  prCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.control,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border + '66',
+  },
+  prCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  prExerciseName: {
+    color: colors.textPrimary,
+    fontSize: typography.body.size,
+    fontWeight: '600',
+  },
+  prTypePill: {
+    backgroundColor: '#EBCB8B22',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  prTypePillText: {
+    color: '#EBCB8B',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  prCardDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  prValue: {
+    color: colors.textPrimary,
+    fontSize: typography.h2.size,
+    fontWeight: '700',
+  },
+  prImprovementBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#A3BE8C22',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    gap: 2,
+  },
+  prImprovementText: {
+    color: '#A3BE8C',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  prSetDetail: {
+    color: colors.textMuted,
+    fontSize: typography.caption.size,
   },
 });

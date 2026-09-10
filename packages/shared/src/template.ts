@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { exerciseSchema } from './exercise';
 
+
+
 // ─── Template Exercise Schema & Types ───────────────────────────────
 
 export const templateExerciseSchema = z.object({

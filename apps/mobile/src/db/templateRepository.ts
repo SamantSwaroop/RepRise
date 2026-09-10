@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import type { Template, TemplateExercise, Workout } from '@reprise/shared';
 import { getDatabase } from './database';
+import { enqueueSyncMutation } from './syncQueue';
 
 // ─── ID generation ─────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ export async function createTemplate(userId: string, name: string): Promise<Temp
     [id, userId, name, now, now],
   );
 
-  return {
+  const template: Template = {
     id,
     userId,
     name,
@@ -73,6 +74,10 @@ export async function createTemplate(userId: string, name: string): Promise<Temp
     createdAt: now,
     updatedAt: now,
   };
+
+  await enqueueSyncMutation(userId, 'template', id, 'create', template);
+
+  return template;
 }
 
 export async function getTemplates(userId: string): Promise<(Omit<Template, 'exercises'> & { exerciseCount: number })[]> {
@@ -123,6 +128,11 @@ export async function updateTemplate(
   const db = await getDatabase();
   const now = nowISO();
 
+  const ownerRow = await db.getFirstAsync<{ user_id: string }>(
+    `SELECT user_id FROM templates WHERE id = ?`,
+    [templateId],
+  );
+
   const fields: string[] = ['updated_at = ?'];
   const values: any[] = [now];
 
@@ -137,11 +147,27 @@ export async function updateTemplate(
     `UPDATE templates SET ${fields.join(', ')} WHERE id = ?`,
     values,
   );
+
+  if (ownerRow?.user_id) {
+    await enqueueSyncMutation(ownerRow.user_id, 'template', templateId, 'update', {
+      ...data,
+      updatedAt: now,
+    });
+  }
 }
 
 export async function deleteTemplate(templateId: string): Promise<void> {
   const db = await getDatabase();
+  const ownerRow = await db.getFirstAsync<{ user_id: string }>(
+    `SELECT user_id FROM templates WHERE id = ?`,
+    [templateId],
+  );
+
   await db.runAsync(`DELETE FROM templates WHERE id = ?`, [templateId]);
+
+  if (ownerRow?.user_id) {
+    await enqueueSyncMutation(ownerRow.user_id, 'template', templateId, 'delete');
+  }
 }
 
 // ─── Template Exercise CRUD ────────────────────────────────────────
@@ -155,6 +181,11 @@ export async function addExerciseToTemplate(
   const db = await getDatabase();
   const id = uuid();
   const now = nowISO();
+
+  const ownerRow = await db.getFirstAsync<{ user_id: string }>(
+    `SELECT user_id FROM templates WHERE id = ?`,
+    [templateId],
+  );
 
   // Auto-determine order if not provided
   let actualOrder = order;
@@ -178,7 +209,7 @@ export async function addExerciseToTemplate(
     [now, templateId],
   );
 
-  return {
+  const te: TemplateExercise = {
     id,
     templateId,
     exerciseId,
@@ -186,11 +217,39 @@ export async function addExerciseToTemplate(
     defaultSets,
     createdAt: now,
   };
+
+  if (ownerRow?.user_id) {
+    await enqueueSyncMutation(ownerRow.user_id, 'template_exercise', id, 'create', te);
+    await enqueueSyncMutation(ownerRow.user_id, 'template', templateId, 'update', {
+      updatedAt: now,
+    });
+  }
+
+  return te;
 }
 
 export async function removeExerciseFromTemplate(templateExerciseId: string): Promise<void> {
   const db = await getDatabase();
+  const ownerRow = await db.getFirstAsync<{ user_id: string; template_id: string }>(
+    `SELECT t.user_id, te.template_id
+     FROM templates t
+     JOIN template_exercises te ON te.template_id = t.id
+     WHERE te.id = ?`,
+    [templateExerciseId],
+  );
+
   await db.runAsync(`DELETE FROM template_exercises WHERE id = ?`, [templateExerciseId]);
+
+  if (ownerRow?.template_id) {
+    const now = nowISO();
+    await db.runAsync(`UPDATE templates SET updated_at = ? WHERE id = ?`, [now, ownerRow.template_id]);
+    if (ownerRow.user_id) {
+      await enqueueSyncMutation(ownerRow.user_id, 'template_exercise', templateExerciseId, 'delete');
+      await enqueueSyncMutation(ownerRow.user_id, 'template', ownerRow.template_id, 'update', {
+        updatedAt: now,
+      });
+    }
+  }
 }
 
 export async function reorderTemplateExercises(
@@ -218,46 +277,58 @@ export async function updateTemplateExerciseSets(
   defaultSets: number,
 ): Promise<void> {
   const db = await getDatabase();
+  const ownerRow = await db.getFirstAsync<{ user_id: string; template_id: string }>(
+    `SELECT t.user_id, te.template_id
+     FROM templates t
+     JOIN template_exercises te ON te.template_id = t.id
+     WHERE te.id = ?`,
+    [templateExerciseId],
+  );
+
   await db.runAsync(
     `UPDATE template_exercises SET default_sets = ? WHERE id = ?`,
     [defaultSets, templateExerciseId],
   );
+
+  if (ownerRow?.template_id) {
+    const now = nowISO();
+    await db.runAsync(
+      `UPDATE templates SET updated_at = ? WHERE id = ?`,
+      [now, ownerRow.template_id],
+    );
+    if (ownerRow.user_id) {
+      await enqueueSyncMutation(ownerRow.user_id, 'template_exercise', templateExerciseId, 'update', {
+        defaultSets,
+      });
+      await enqueueSyncMutation(ownerRow.user_id, 'template', ownerRow.template_id, 'update', {
+        updatedAt: now,
+      });
+    }
+  }
 }
 
-// ─── Template ↔ Workout Conversion ────────────────────────────────
+// ─── Save Completed Workout as Template ─────────────────────────────
 
-/**
- * Create a new template by snapshotting a completed workout's exercises.
- */
 export async function createTemplateFromWorkout(
   userId: string,
   workout: Workout,
-  templateName: string,
+  templateName?: string,
 ): Promise<Template> {
-  const template = await createTemplate(userId, templateName);
+  const name = templateName || `${workout.name} Template`;
+  const template = await createTemplate(userId, name);
 
-  for (let i = 0; i < workout.exercises.length; i++) {
-    const we = workout.exercises[i];
-    await addExerciseToTemplate(
-      template.id,
-      we.exerciseId,
-      we.sets.length || 3,
-      i,
-    );
+  if (workout.exercises && workout.exercises.length > 0) {
+    for (let i = 0; i < workout.exercises.length; i++) {
+      const we = workout.exercises[i];
+      const completedSetsCount = we.sets?.filter((s) => s.isCompleted)?.length || 3;
+      await addExerciseToTemplate(template.id, we.exerciseId, completedSetsCount, i);
+    }
   }
 
-  // Re-fetch to get the full template with exercises
-  const full = await getTemplateById(template.id);
-  return full!;
+  return (await getTemplateById(template.id))!;
 }
 
-/**
- * Create a new workout pre-populated from a template's exercises.
- * Uses the workoutRepository functions to remain consistent.
- */
-export { startWorkoutFromTemplate };
-
-async function startWorkoutFromTemplate(
+export async function startWorkoutFromTemplate(
   userId: string,
   templateId: string,
 ): Promise<string> {
@@ -279,4 +350,47 @@ async function startWorkoutFromTemplate(
   }
 
   return workout.id;
+}
+
+// ─── Server Reconciliation ─────────────────────────────────────────
+
+export async function upsertTemplatesFromServer(serverTemplates: Template[]): Promise<void> {
+  if (serverTemplates.length === 0) return;
+  const db = await getDatabase();
+
+  for (const t of serverTemplates) {
+    await db.runAsync(
+      `INSERT INTO templates (id, user_id, name, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         updated_at = excluded.updated_at`,
+      [t.id, t.userId, t.name, t.createdAt, t.updatedAt],
+    );
+
+    for (const te of t.exercises || []) {
+      await db.runAsync(
+        `INSERT INTO template_exercises (id, template_id, exercise_id, "order", default_sets, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           "order" = excluded."order",
+           default_sets = excluded.default_sets`,
+        [te.id, te.templateId, te.exerciseId, te.order, te.defaultSets, te.createdAt],
+      );
+    }
+  }
+}
+
+export async function deleteTemplatesFromServer(deletedIds: string[]): Promise<void> {
+  if (deletedIds.length === 0) return;
+  const db = await getDatabase();
+  const placeholders = deletedIds.map(() => '?').join(', ');
+  await db.runAsync(`DELETE FROM templates WHERE id IN (${placeholders})`, deletedIds);
+}
+
+export async function deleteTemplateExercisesFromServer(deletedIds: string[]): Promise<void> {
+  if (deletedIds.length === 0) return;
+  const db = await getDatabase();
+  const placeholders = deletedIds.map(() => '?').join(', ');
+  await db.runAsync(`DELETE FROM template_exercises WHERE id IN (${placeholders})`, deletedIds);
 }

@@ -11,10 +11,11 @@ const STATUS_CONFIG: Record<WorkoutStatus, { label: string; color: string }> = {
 
 interface WorkoutCardProps {
   workout: Omit<Workout, 'exercises'> & { exerciseCount?: number; setCount?: number };
+  prCount?: number;
   onPress: () => void;
 }
 
-export function WorkoutCard({ workout, onPress }: WorkoutCardProps) {
+export function WorkoutCard({ workout, prCount, onPress }: WorkoutCardProps) {
   const statusCfg = STATUS_CONFIG[workout.status];
   const date = new Date(workout.startedAt);
   const dateStr = date.toLocaleDateString('en-US', {
@@ -44,8 +45,19 @@ export function WorkoutCard({ workout, onPress }: WorkoutCardProps) {
       </View>
 
       <View style={styles.meta}>
-        <Ionicons name="calendar-outline" size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
-        <Text style={styles.metaText}>{dateStr} • {timeStr}</Text>
+        <View style={styles.dateMeta}>
+          <Ionicons name="calendar-outline" size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
+          <Text style={styles.metaText}>{dateStr} • {timeStr}</Text>
+        </View>
+
+        {Boolean(prCount && prCount > 0) && (
+          <View style={styles.prBadge}>
+            <Ionicons name="trophy" size={11} color="#EBCB8B" style={{ marginRight: 3 }} />
+            <Text style={styles.prBadgeText}>
+              {prCount} {prCount === 1 ? 'PR' : 'PRs'}
+            </Text>
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -89,10 +101,29 @@ const styles = StyleSheet.create({
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'space-between',
+  },
+  dateMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   metaText: {
     color: colors.textMuted,
     fontSize: typography.caption.size,
+  },
+  prBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBCB8B22',
+    borderColor: '#EBCB8B55',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  prBadgeText: {
+    color: '#EBCB8B',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

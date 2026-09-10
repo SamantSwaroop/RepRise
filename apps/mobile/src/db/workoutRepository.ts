@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import type { Workout, WorkoutExercise, WorkoutSet, WorkoutStatus, SetType } from '@reprise/shared';
 import { generateDefaultWorkoutName } from '@reprise/shared';
 import { getDatabase } from './database';
+import { enqueueSyncMutation } from './syncQueue';
 
 // ─── ID generation ─────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ export async function createWorkout(userId: string, name?: string): Promise<Work
     [id, userId, workoutName, now, now, now],
   );
 
-  return {
+  const workout: Workout = {
     id,
     userId,
     name: workoutName,
@@ -104,6 +105,10 @@ export async function createWorkout(userId: string, name?: string): Promise<Work
     createdAt: now,
     updatedAt: now,
   };
+
+  await enqueueSyncMutation(userId, 'workout', id, 'create', workout);
+
+  return workout;
 }
 
 export async function getWorkouts(userId: string): Promise<Omit<Workout, 'exercises'>[]> {
@@ -167,6 +172,11 @@ export async function updateWorkout(
   const db = await getDatabase();
   const now = nowISO();
 
+  const ownerRow = await db.getFirstAsync<{ user_id: string }>(
+    `SELECT user_id FROM workouts WHERE id = ?`,
+    [workoutId],
+  );
+
   const fields: string[] = ['updated_at = ?'];
   const values: any[] = [now];
 
@@ -193,12 +203,28 @@ export async function updateWorkout(
     `UPDATE workouts SET ${fields.join(', ')} WHERE id = ?`,
     values,
   );
+
+  if (ownerRow?.user_id) {
+    await enqueueSyncMutation(ownerRow.user_id, 'workout', workoutId, 'update', {
+      ...data,
+      updatedAt: now,
+    });
+  }
 }
 
 export async function deleteWorkout(workoutId: string): Promise<void> {
   const db = await getDatabase();
+  const ownerRow = await db.getFirstAsync<{ user_id: string }>(
+    `SELECT user_id FROM workouts WHERE id = ?`,
+    [workoutId],
+  );
+
   // CASCADE will handle child rows due to PRAGMA foreign_keys = ON
   await db.runAsync(`DELETE FROM workouts WHERE id = ?`, [workoutId]);
+
+  if (ownerRow?.user_id) {
+    await enqueueSyncMutation(ownerRow.user_id, 'workout', workoutId, 'delete');
+  }
 }
 
 // ─── Workout Exercise CRUD ─────────────────────────────────────────
@@ -212,6 +238,11 @@ export async function addExerciseToWorkout(
   const db = await getDatabase();
   const id = uuid();
   const now = nowISO();
+
+  const ownerRow = await db.getFirstAsync<{ user_id: string }>(
+    `SELECT user_id FROM workouts WHERE id = ?`,
+    [workoutId],
+  );
 
   // Auto-determine order if not provided
   let actualOrder = order;
@@ -229,6 +260,17 @@ export async function addExerciseToWorkout(
     [id, workoutId, exerciseId, actualOrder, now],
   );
 
+  if (ownerRow?.user_id) {
+    await enqueueSyncMutation(ownerRow.user_id, 'workout_exercise', id, 'create', {
+      id,
+      workoutId,
+      exerciseId,
+      order: actualOrder,
+      notes: null,
+      createdAt: now,
+    });
+  }
+
   // Pre-populate default sets
   const initialSets: WorkoutSet[] = [];
   const count = Math.max(1, Math.min(defaultSetsCount, 20));
@@ -239,7 +281,7 @@ export async function addExerciseToWorkout(
        VALUES (?, ?, ?, 'normal', NULL, NULL, NULL, 0, ?, ?)`,
       [setId, id, i, now, now],
     );
-    initialSets.push({
+    const setObj: WorkoutSet = {
       id: setId,
       workoutExerciseId: id,
       setNumber: i,
@@ -250,7 +292,12 @@ export async function addExerciseToWorkout(
       isCompleted: false,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+    initialSets.push(setObj);
+
+    if (ownerRow?.user_id) {
+      await enqueueSyncMutation(ownerRow.user_id, 'workout_set', setId, 'create', setObj);
+    }
   }
 
   return {
@@ -266,7 +313,16 @@ export async function addExerciseToWorkout(
 
 export async function removeExerciseFromWorkout(workoutExerciseId: string): Promise<void> {
   const db = await getDatabase();
+  const ownerRow = await db.getFirstAsync<{ user_id: string }>(
+    `SELECT w.user_id FROM workouts w JOIN workout_exercises we ON we.workout_id = w.id WHERE we.id = ?`,
+    [workoutExerciseId],
+  );
+
   await db.runAsync(`DELETE FROM workout_exercises WHERE id = ?`, [workoutExerciseId]);
+
+  if (ownerRow?.user_id) {
+    await enqueueSyncMutation(ownerRow.user_id, 'workout_exercise', workoutExerciseId, 'delete');
+  }
 }
 
 // ─── Set CRUD ──────────────────────────────────────────────────────
@@ -284,6 +340,11 @@ export async function upsertSet(
 ): Promise<WorkoutSet> {
   const db = await getDatabase();
   const now = nowISO();
+
+  const ownerRow = await db.getFirstAsync<{ user_id: string }>(
+    `SELECT w.user_id FROM workouts w JOIN workout_exercises we ON we.workout_id = w.id WHERE we.id = ?`,
+    [workoutExerciseId],
+  );
 
   if (data.id) {
     // Update existing set
@@ -304,7 +365,11 @@ export async function upsertSet(
       [data.id],
     );
 
-    return mapSetRow(row!);
+    const mapped = mapSetRow(row!);
+    if (ownerRow?.user_id) {
+      await enqueueSyncMutation(ownerRow.user_id, 'workout_set', data.id, 'update', mapped);
+    }
+    return mapped;
   }
 
   // Insert new set
@@ -332,7 +397,7 @@ export async function upsertSet(
     ],
   );
 
-  return {
+  const newSet: WorkoutSet = {
     id,
     workoutExerciseId,
     setNumber,
@@ -344,20 +409,30 @@ export async function upsertSet(
     createdAt: now,
     updatedAt: now,
   };
+
+  if (ownerRow?.user_id) {
+    await enqueueSyncMutation(ownerRow.user_id, 'workout_set', id, 'create', newSet);
+  }
+
+  return newSet;
 }
 
 export async function deleteSet(setId: string): Promise<void> {
   const db = await getDatabase();
+  const ownerRow = await db.getFirstAsync<{ user_id: string }>(
+    `SELECT w.user_id FROM workouts w JOIN workout_exercises we ON we.workout_id = w.id JOIN workout_sets ws ON ws.workout_exercise_id = we.id WHERE ws.id = ?`,
+    [setId],
+  );
+
   await db.runAsync(`DELETE FROM workout_sets WHERE id = ?`, [setId]);
+
+  if (ownerRow?.user_id) {
+    await enqueueSyncMutation(ownerRow.user_id, 'workout_set', setId, 'delete');
+  }
 }
 
 // ─── Previous Performance ──────────────────────────────────────────
 
-/**
- * Returns the sets from the most recent *completed* workout that included
- * the given exercise, excluding the current workout. Used to show
- * "previous" ghost data in the workout detail screen.
- */
 export async function getPreviousSetsForExercise(
   userId: string,
   exerciseId: string,
@@ -365,8 +440,6 @@ export async function getPreviousSetsForExercise(
 ): Promise<WorkoutSet[]> {
   const db = await getDatabase();
 
-  // Find the most recent completed workout (not the current one)
-  // that contains this exercise.
   const row = await db.getFirstAsync<{ we_id: string }>(
     `SELECT we.id as we_id
      FROM workout_exercises we
@@ -390,3 +463,93 @@ export async function getPreviousSetsForExercise(
   return setRows.map(mapSetRow);
 }
 
+// ─── Server Reconciliation ─────────────────────────────────────────
+
+export async function upsertWorkoutsFromServer(serverWorkouts: Workout[]): Promise<void> {
+  if (serverWorkouts.length === 0) return;
+  const db = await getDatabase();
+
+  for (const w of serverWorkouts) {
+    await db.runAsync(
+      `INSERT INTO workouts (id, user_id, name, status, started_at, completed_at, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         status = excluded.status,
+         started_at = excluded.started_at,
+         completed_at = excluded.completed_at,
+         notes = excluded.notes,
+         updated_at = excluded.updated_at`,
+      [
+        w.id,
+        w.userId,
+        w.name,
+        w.status,
+        w.startedAt,
+        w.completedAt ?? null,
+        w.notes ?? null,
+        w.createdAt,
+        w.updatedAt,
+      ],
+    );
+
+    for (const we of w.exercises || []) {
+      await db.runAsync(
+        `INSERT INTO workout_exercises (id, workout_id, exercise_id, "order", notes, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           "order" = excluded."order",
+           notes = excluded.notes`,
+        [we.id, we.workoutId, we.exerciseId, we.order, we.notes ?? null, we.createdAt],
+      );
+
+      for (const s of we.sets || []) {
+        await db.runAsync(
+          `INSERT INTO workout_sets (id, workout_exercise_id, set_number, type, weight_kg, reps, rpe, is_completed, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             set_number = excluded.set_number,
+             type = excluded.type,
+             weight_kg = excluded.weight_kg,
+             reps = excluded.reps,
+             rpe = excluded.rpe,
+             is_completed = excluded.is_completed,
+             updated_at = excluded.updated_at`,
+          [
+            s.id,
+            s.workoutExerciseId,
+            s.setNumber,
+            s.type,
+            s.weightKg ?? null,
+            s.reps ?? null,
+            s.rpe ?? null,
+            s.isCompleted ? 1 : 0,
+            s.createdAt,
+            s.updatedAt,
+          ],
+        );
+      }
+    }
+  }
+}
+
+export async function deleteWorkoutsFromServer(deletedIds: string[]): Promise<void> {
+  if (deletedIds.length === 0) return;
+  const db = await getDatabase();
+  const placeholders = deletedIds.map(() => '?').join(', ');
+  await db.runAsync(`DELETE FROM workouts WHERE id IN (${placeholders})`, deletedIds);
+}
+
+export async function deleteWorkoutExercisesFromServer(deletedIds: string[]): Promise<void> {
+  if (deletedIds.length === 0) return;
+  const db = await getDatabase();
+  const placeholders = deletedIds.map(() => '?').join(', ');
+  await db.runAsync(`DELETE FROM workout_exercises WHERE id IN (${placeholders})`, deletedIds);
+}
+
+export async function deleteSetsFromServer(deletedIds: string[]): Promise<void> {
+  if (deletedIds.length === 0) return;
+  const db = await getDatabase();
+  const placeholders = deletedIds.map(() => '?').join(', ');
+  await db.runAsync(`DELETE FROM workout_sets WHERE id IN (${placeholders})`, deletedIds);
+}

@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, TextInput, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { WorkoutSet, SetType } from '@reprise/shared';
-import { SET_TYPES } from '@reprise/shared';
-import { colors, spacing, typography } from '../theme/tokens';
+import * as Haptics from 'expo-haptics';
+import type { WorkoutSet, SetType, PRType } from '@reprise/shared';
+import { SET_TYPES, displayWeight, parseWeightInput } from '@reprise/shared';
+import { colors, spacing, typography, numericText } from '../theme/tokens';
+import { PRBadge } from './PRBadge';
+import { useSettingsStore } from '../stores/settingsStore';
 
 const SET_TYPE_LABELS: Record<SetType, { short: string; color: string }> = {
   normal: { short: 'N', color: colors.accent },
@@ -27,6 +30,8 @@ interface SetRowProps {
   previousSet?: WorkoutSet | null;
   /** Called when the user taps "copy" to auto-fill from the previous set. */
   onCopyPrevious?: () => void;
+  /** Personal record types broken on this set (if completed). */
+  prTypes?: PRType[];
 }
 
 export function SetRow({
@@ -36,29 +41,36 @@ export function SetRow({
   readOnly,
   previousSet,
   onCopyPrevious,
+  prTypes,
 }: SetRowProps) {
   const typeCfg = SET_TYPE_LABELS[set.type];
+  const hasPR = Boolean(set.isCompleted && prTypes && prTypes.length > 0);
+  const weightUnit = useSettingsStore((s) => s.weightUnit);
+
+  const initialDisplay = displayWeight(set.weightKg, weightUnit);
 
   // Local state for smooth typing (especially decimals like "2." or "2.5")
   const [weightText, setWeightText] = useState(
-    set.weightKg != null ? String(set.weightKg) : '',
+    initialDisplay != null ? String(initialDisplay) : '',
   );
   const [repsText, setRepsText] = useState(
     set.reps != null ? String(set.reps) : '',
   );
 
-  // Sync weightText only when the numerical value from props changes externally
+  // Sync weightText when set.weightKg or weightUnit changes externally
   useEffect(() => {
     const curNum = parseFloat(weightText.replace(',', '.'));
+    const targetVal = displayWeight(set.weightKg, weightUnit);
     const isEmpty = weightText.trim() === '';
-    if (isEmpty && set.weightKg != null) {
-      setWeightText(String(set.weightKg));
-    } else if (!isEmpty && set.weightKg == null) {
+
+    if (isEmpty && targetVal != null) {
+      setWeightText(String(targetVal));
+    } else if (!isEmpty && targetVal == null) {
       setWeightText('');
-    } else if (!isEmpty && !isNaN(curNum) && curNum !== set.weightKg) {
-      setWeightText(set.weightKg != null ? String(set.weightKg) : '');
+    } else if (!isEmpty && !isNaN(curNum) && Math.abs(curNum - (targetVal ?? 0)) > 0.05) {
+      setWeightText(targetVal != null ? String(targetVal) : '');
     }
-  }, [set.weightKg]);
+  }, [set.weightKg, weightUnit]);
 
   // Sync repsText only when the numerical value from props changes externally
   useEffect(() => {
@@ -82,19 +94,15 @@ export function SetRow({
     }
     setWeightText(normalized);
 
-    const weightNum =
-      normalized === '' || normalized === '.' ? null : parseFloat(normalized);
-    const validWeight =
-      weightNum !== null && !isNaN(weightNum) && weightNum >= 0 ? weightNum : null;
-
+    const canonicalKg = parseWeightInput(normalized, weightUnit);
     const curReps = repsText.trim() === '' ? null : parseInt(repsText, 10);
     const validReps = curReps !== null && !isNaN(curReps) && curReps > 0 ? curReps : null;
 
     // Automatically complete/select set when both weight and reps are filled
-    const isCompleted = validWeight != null && validReps != null;
+    const isCompleted = canonicalKg != null && validReps != null;
 
     onUpdate({
-      weightKg: validWeight,
+      weightKg: canonicalKg,
       isCompleted,
     });
   };
@@ -114,16 +122,51 @@ export function SetRow({
     const repsNum = cleaned === '' ? null : parseInt(cleaned, 10);
     const validReps = repsNum !== null && repsNum > 0 ? repsNum : null;
 
-    const curWeightNum = parseFloat(weightText.replace(',', '.'));
-    const validWeight =
-      !isNaN(curWeightNum) && curWeightNum >= 0 ? curWeightNum : null;
+    const canonicalKg = parseWeightInput(weightText, weightUnit);
 
     // Automatically complete/select set when both weight and reps are filled
-    const isCompleted = validWeight != null && validReps != null;
+    const isCompleted = canonicalKg != null && validReps != null;
 
     onUpdate({
       reps: validReps,
       isCompleted,
+    });
+  };
+
+  const checkScale = useRef(new Animated.Value(1)).current;
+
+  const handleToggleComplete = () => {
+    if (readOnly) return;
+    const nextCompleted = !set.isCompleted;
+
+    if (nextCompleted) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } else {
+      Haptics.selectionAsync().catch(() => {});
+    }
+
+    Animated.sequence([
+      Animated.timing(checkScale, {
+        toValue: 1.25,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(checkScale, {
+        toValue: 1.0,
+        tension: 200,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    const canonicalKg = parseWeightInput(weightText, weightUnit);
+    const curReps = repsText.trim() === '' ? null : parseInt(repsText, 10);
+    const validReps = curReps !== null && !isNaN(curReps) && curReps > 0 ? curReps : null;
+
+    onUpdate({
+      weightKg: canonicalKg,
+      reps: validReps,
+      isCompleted: nextCompleted,
     });
   };
 
@@ -134,15 +177,28 @@ export function SetRow({
     onUpdate({ type: nextType });
   };
 
-  // Format previous set data as ghost text
+  // Format previous set data as ghost text converted to active unit
+  const prevWeight = previousSet?.weightKg != null ? displayWeight(previousSet.weightKg, weightUnit) : null;
   const prevLabel = previousSet
-    ? `${previousSet.weightKg ?? '—'}×${previousSet.reps ?? '—'}`
+    ? `${prevWeight ?? '—'}×${previousSet.reps ?? '—'}`
     : null;
 
   return (
-    <View style={[styles.row, set.isCompleted && styles.rowCompleted]}>
+    <View
+      style={[
+        styles.row,
+        set.isCompleted && styles.rowCompleted,
+        hasPR && styles.rowPR,
+      ]}
+    >
       {/* Set number */}
-      <Text style={[styles.setNum, set.isCompleted && styles.setNumCompleted]}>
+      <Text
+        style={[
+          styles.setNum,
+          set.isCompleted && styles.setNumCompleted,
+          hasPR && styles.setNumPR,
+        ]}
+      >
         {set.setNumber}
       </Text>
 
@@ -165,9 +221,15 @@ export function SetRow({
       ) : null}
 
       {/* Weight input */}
-      <View style={[styles.inputCell, set.isCompleted && styles.inputCellCompleted]}>
+      <View
+        style={[
+          styles.inputCell,
+          set.isCompleted && styles.inputCellCompleted,
+          hasPR && styles.inputCellPR,
+        ]}
+      >
         <TextInput
-          style={styles.input}
+          style={[styles.input, numericText]}
           value={weightText}
           onChangeText={handleWeightChange}
           onBlur={handleWeightBlur}
@@ -177,13 +239,19 @@ export function SetRow({
           editable={!readOnly}
           selectTextOnFocus
         />
-        <Text style={styles.unit}>kg</Text>
+        <Text style={styles.unit}>{weightUnit}</Text>
       </View>
 
       {/* Reps input */}
-      <View style={[styles.inputCell, set.isCompleted && styles.inputCellCompleted]}>
+      <View
+        style={[
+          styles.inputCell,
+          set.isCompleted && styles.inputCellCompleted,
+          hasPR && styles.inputCellPR,
+        ]}
+      >
         <TextInput
-          style={styles.input}
+          style={[styles.input, numericText]}
           value={repsText}
           onChangeText={handleRepsChange}
           placeholder="—"
@@ -194,6 +262,32 @@ export function SetRow({
         />
         <Text style={styles.unit}>reps</Text>
       </View>
+
+      {/* PR Badge if earned */}
+      {hasPR && <PRBadge prTypes={prTypes!} size="sm" />}
+
+      {/* Checkmark Completion Button */}
+      {!readOnly && (
+        <Pressable
+          onPress={handleToggleComplete}
+          style={styles.checkBtnWrap}
+          hitSlop={8}
+        >
+          <Animated.View
+            style={[
+              styles.checkBtn,
+              set.isCompleted && styles.checkBtnCompleted,
+              { transform: [{ scale: checkScale }] },
+            ]}
+          >
+            <Ionicons
+              name={set.isCompleted ? 'checkmark' : 'checkmark-outline'}
+              size={14}
+              color={set.isCompleted ? colors.background : colors.textMuted}
+            />
+          </Animated.View>
+        </Pressable>
+      )}
 
       {/* Delete button */}
       {!readOnly && (
@@ -225,15 +319,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success + '12',
     borderLeftColor: colors.success,
   },
+  rowPR: {
+    backgroundColor: '#EBCB8B18',
+    borderLeftColor: '#EBCB8B',
+  },
   setNum: {
     width: 18,
     color: colors.textMuted,
     fontSize: typography.caption.size,
     fontWeight: '600',
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
   setNumCompleted: {
     color: colors.success,
+    fontWeight: '700',
+  },
+  setNumPR: {
+    color: '#EBCB8B',
     fontWeight: '700',
   },
   typeBadge: {
@@ -284,6 +387,9 @@ const styles = StyleSheet.create({
   inputCellCompleted: {
     borderColor: colors.success + '44',
   },
+  inputCellPR: {
+    borderColor: '#EBCB8B55',
+  },
   input: {
     flex: 1,
     color: colors.textPrimary,
@@ -297,6 +403,23 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '500',
     marginLeft: 1,
+  },
+  checkBtnWrap: {
+    paddingHorizontal: 2,
+  },
+  checkBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkBtnCompleted: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   deleteBtn: {
     width: 24,

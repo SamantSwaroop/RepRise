@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   SectionList,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import type { Exercise, MuscleGroup } from '@reprise/shared';
 import { MUSCLE_GROUPS } from '@reprise/shared';
@@ -16,10 +17,21 @@ import { colors, spacing, typography, radius } from '../../src/theme/tokens';
 import { useExercises, useCreateExercise, useDeleteExercise } from '../../src/hooks/useExercises';
 import { ExerciseCard } from '../../src/components/ExerciseCard';
 import { ExerciseFormModal } from '../../src/components/ExerciseFormModal';
+import { syncNow } from '../../src/lib/syncEngine';
 
 export default function ExercisesTab() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await syncNow({ force: true });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const { data: exercises, isLoading, error } = useExercises(search || undefined);
   const createMutation = useCreateExercise();
@@ -110,6 +122,14 @@ export default function ExercisesTab() {
           )}
           contentContainerStyle={styles.list}
           stickySectionHeadersEnabled={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.center}>
               <Text style={styles.emptyText}>

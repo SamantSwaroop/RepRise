@@ -24,3 +24,10 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - name: Build packages
+        run: |
+          pnpm --filter @reprise/shared build
+          pnpm --filter @reprise/api build
+      - name: Verify Docker build
+        run: docker build -f apps/api/Dockerfile -t reprise-api:ci .
+

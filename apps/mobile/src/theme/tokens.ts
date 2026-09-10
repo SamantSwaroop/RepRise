@@ -55,3 +55,20 @@ export const typography = {
   body: { size: 16, weight: '400' as const },
   caption: { size: 13, weight: '400' as const },
 } as const;
+
+export const numericText = {
+  fontVariant: ['tabular-nums'] as ('tabular-nums')[],
+};
+
+export const animation = {
+  duration: {
+    fast: 150,
+    normal: 250,
+    slow: 400,
+  },
+  spring: {
+    bouncy: { tension: 180, friction: 12 },
+    gentle: { tension: 120, friction: 14 },
+    snappy: { tension: 240, friction: 18 },
+  },
+} as const;

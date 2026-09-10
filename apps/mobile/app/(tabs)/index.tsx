@@ -1,24 +1,20 @@
-import { StyleSheet, Text, View, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, radius } from '../../src/theme/tokens';
 import { useAuthStore } from '../../src/stores/authStore';
 import { useRouter } from 'expo-router';
 import { useWorkouts, useCreateWorkout } from '../../src/hooks/useWorkouts';
-import { WorkoutCard } from '../../src/components/WorkoutCard';
+import { useStreakData } from '../../src/hooks/useAnalytics';
+import { StreakBanner } from '../../src/components/StreakBanner';
 
 export default function HomeTab() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const router = useRouter();
-  const { data: workouts, isLoading } = useWorkouts();
+  const { data: workouts } = useWorkouts();
+  const { data: streak } = useStreakData();
   const createWorkout = useCreateWorkout();
 
-  const recentWorkouts = workouts?.slice(0, 5) ?? [];
   const inProgressWorkout = workouts?.find((w) => w.status === 'in_progress');
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/');
-  };
 
   const handleStartWorkout = () => {
     if (inProgressWorkout) {
@@ -40,11 +36,31 @@ export default function HomeTab() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.greeting}>
-        <Text style={styles.hello}>Hello,</Text>
-        <Text style={styles.name}>{user?.displayName ?? 'Athlete'}</Text>
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.headerRow}>
+        <View style={styles.greeting}>
+          <Text style={styles.hello}>Hello,</Text>
+          <Text style={styles.name}>{user?.displayName ?? 'Athlete'}</Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [styles.settingsBtn, pressed && styles.settingsBtnPressed]}
+          onPress={() => router.push('/settings')}
+          accessibilityLabel="Settings"
+          hitSlop={8}
+        >
+          <Ionicons name="settings-outline" size={24} color={colors.textPrimary} />
+        </Pressable>
       </View>
+
+      {/* Streak & Consistency Banner */}
+      <StreakBanner
+        streak={streak}
+        onPress={() => (router as any).push('/(tabs)/progress')}
+      />
 
       {/* Start / Resume Workout Button */}
       <Pressable
@@ -84,66 +100,73 @@ export default function HomeTab() {
         </Pressable>
       )}
 
-      {/* Recent Workouts */}
-      <View style={styles.recentHeader}>
-        <Text style={styles.recentTitle}>Recent Workouts</Text>
-        {recentWorkouts.length > 0 && (
-          <Pressable onPress={() => (router as any).push('/(tabs)/workouts')}>
-            <Text style={styles.seeAll}>See All →</Text>
-          </Pressable>
-        )}
+      {/* Quick Access Navigation */}
+      <View style={styles.quickNavSection}>
+        <Pressable
+          style={({ pressed }) => [styles.quickNavCard, pressed && styles.quickNavCardPressed]}
+          onPress={() => (router as any).push('/(tabs)/workouts')}
+        >
+          <View style={styles.quickNavIconWrap}>
+            <Ionicons name="barbell-outline" size={20} color={colors.accent} />
+          </View>
+          <View style={styles.quickNavContent}>
+            <Text style={styles.quickNavTitle}>Workout History</Text>
+            <Text style={styles.quickNavSubtitle}>View and review past logged sessions</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.quickNavCard, pressed && styles.quickNavCardPressed]}
+          onPress={() => (router as any).push('/(tabs)/progress')}
+        >
+          <View style={styles.quickNavIconWrap}>
+            <Ionicons name="trending-up-outline" size={20} color={colors.accent} />
+          </View>
+          <View style={styles.quickNavContent}>
+            <Text style={styles.quickNavTitle}>Progress & PRs</Text>
+            <Text style={styles.quickNavSubtitle}>Volume charts, PR records, and muscle map</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
       </View>
-
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="small" color={colors.accent} />
-        </View>
-      ) : recentWorkouts.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No workouts yet</Text>
-          <Text style={styles.emptyBody}>
-            Tap "Start Workout" above to log your first session. Your data is
-            saved locally — no internet required.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={recentWorkouts}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <WorkoutCard
-              workout={item}
-              onPress={() =>
-                (router as any).push({ pathname: '/workout/[id]', params: { id: item.id } })
-              }
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-          scrollEnabled={false}
-        />
-      )}
-
-      <View style={styles.spacer} />
-
-      <Pressable
-        style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutPressed]}
-        onPress={handleLogout}
-      >
-        <Text style={styles.logoutText}>Log Out</Text>
-      </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scrollView: {
     flex: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl,
     backgroundColor: colors.background,
   },
-  greeting: {
+  container: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xxl,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: spacing.xl,
+  },
+  greeting: {
+    flex: 1,
+  },
+  settingsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.control,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+  },
+  settingsBtnPressed: {
+    opacity: 0.7,
+    backgroundColor: colors.surfaceRaised,
   },
   hello: {
     color: colors.textMuted,
@@ -209,65 +232,43 @@ const styles = StyleSheet.create({
   btnIcon: {
     marginRight: spacing.xs,
   },
-  recentHeader: {
+  quickNavSection: {
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  quickNavCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  recentTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.h2.size,
-    fontWeight: typography.h2.weight,
-  },
-  seeAll: {
-    color: colors.accent,
-    fontSize: typography.caption.size,
-    fontWeight: '600',
-  },
-  center: {
-    paddingVertical: spacing.xl,
-    alignItems: 'center',
-  },
-  emptyCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.card,
-    padding: spacing.xl,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  emptyTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.h2.size,
-    fontWeight: typography.h2.weight,
-    marginBottom: spacing.sm,
+  quickNavCardPressed: {
+    backgroundColor: colors.surfaceRaised,
+    opacity: 0.9,
   },
-  emptyBody: {
-    color: colors.textMuted,
-    fontSize: typography.body.size,
-    lineHeight: 22,
-  },
-  listContent: {
-    gap: 0,
-  },
-  spacer: {
-    flex: 1,
-  },
-  logoutButton: {
-    height: 48,
+  quickNavIconWrap: {
+    width: 40,
+    height: 40,
     borderRadius: radius.control,
+    backgroundColor: colors.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.danger,
-    marginBottom: 30,
+    marginRight: spacing.md,
   },
-  logoutPressed: {
-    opacity: 0.7,
+  quickNavContent: {
+    flex: 1,
   },
-  logoutText: {
-    color: colors.danger,
+  quickNavTitle: {
+    color: colors.textPrimary,
     fontSize: typography.body.size,
     fontWeight: '600',
+  },
+  quickNavSubtitle: {
+    color: colors.textMuted,
+    fontSize: typography.caption.size,
+    marginTop: 2,
   },
 });

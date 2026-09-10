@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { exerciseSchema } from './exercise';
 
+
+
 // ─── Enums & Constants ──────────────────────────────────────────────
 
 export const WORKOUT_STATUSES = ['in_progress', 'completed', 'abandoned'] as const;
@@ -122,15 +124,4 @@ export function generateDefaultWorkoutName(date: Date = new Date()): string {
 
   const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
   return `${dayOfWeek} ${timeOfDay} Workout`;
-}
-
-/**
- * Unit conversion helpers.
- */
-export function kgToLbs(kg: number): number {
-  return Math.round(kg * 2.20462 * 10) / 10;
-}
-
-export function lbsToKg(lbs: number): number {
-  return Math.round((lbs / 2.20462) * 10) / 10;
 }

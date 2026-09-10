@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { eq } from 'drizzle-orm';
 
-import { registerSchema, loginSchema, refreshSchema } from '@reprise/shared';
+import { registerSchema, loginSchema, refreshSchema, updateProfileSchema } from '@reprise/shared';
 import { env } from '../config/env.js';
 import { db } from '../db/index.js';
 import { users, refreshTokens } from '../db/schema.js';
@@ -54,7 +54,13 @@ authRouter.post('/register', async (req, res) => {
       email: body.email.toLowerCase(),
       passwordHash,
       displayName: body.displayName,
-    }).returning({ id: users.id, email: users.email, displayName: users.displayName, createdAt: users.createdAt });
+    }).returning({
+      id: users.id,
+      email: users.email,
+      displayName: users.displayName,
+      avatarUrl: users.avatarUrl,
+      createdAt: users.createdAt,
+    });
 
     const accessToken = generateAccessToken({ id: user.id, email: user.email });
     const refreshToken = generateRefreshToken();
@@ -108,6 +114,7 @@ authRouter.post('/login', async (req, res) => {
           id: user.id,
           email: user.email,
           displayName: user.displayName,
+          avatarUrl: user.avatarUrl,
           createdAt: user.createdAt.toISOString(),
         },
         tokens: { accessToken, refreshToken },
@@ -196,6 +203,7 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       id: users.id,
       email: users.email,
       displayName: users.displayName,
+      avatarUrl: users.avatarUrl,
       createdAt: users.createdAt,
     })
       .from(users)
@@ -214,6 +222,54 @@ authRouter.get('/me', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Me error:', err);
+    res.status(500).json({ error: { code: 'internal', message: 'Internal server error' } });
+  }
+});
+
+// ─── PATCH /me ──────────────────────────────────────────────────────
+
+authRouter.patch('/me', requireAuth, async (req, res) => {
+  try {
+    const body = updateProfileSchema.parse(req.body);
+
+    const updateData: { displayName?: string; avatarUrl?: string | null; updatedAt: Date } = {
+      updatedAt: new Date(),
+    };
+
+    if (body.displayName !== undefined) {
+      updateData.displayName = body.displayName.trim();
+    }
+    if (body.avatarUrl !== undefined) {
+      updateData.avatarUrl = body.avatarUrl;
+    }
+
+    const [updatedUser] = await db.update(users)
+      .set(updateData)
+      .where(eq(users.id, req.user!.id))
+      .returning({
+        id: users.id,
+        email: users.email,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+        createdAt: users.createdAt,
+      });
+
+    if (!updatedUser) {
+      res.status(404).json({ error: { code: 'not_found', message: 'User not found' } });
+      return;
+    }
+
+    res.json({
+      data: {
+        user: { ...updatedUser, createdAt: updatedUser.createdAt.toISOString() },
+      },
+    });
+  } catch (err: any) {
+    if (err?.name === 'ZodError') {
+      res.status(400).json({ error: { code: 'validation_error', message: err.errors } });
+      return;
+    }
+    console.error('Update profile error:', err);
     res.status(500).json({ error: { code: 'internal', message: 'Internal server error' } });
   }
 });
