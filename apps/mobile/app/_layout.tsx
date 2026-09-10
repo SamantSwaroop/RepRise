@@ -15,6 +15,7 @@ import { initNotifications } from '../src/lib/notifications';
 import { FloatingRestTimer } from '../src/components/FloatingRestTimer';
 import { SyncDetailsModal } from '../src/components/SyncDetailsModal';
 import { Toast } from '../src/components/Toast';
+import { ConfirmModal } from '../src/components/ConfirmModal';
 import { getDatabase } from '../src/db/database';
 import { initSyncEngine } from '../src/lib/syncEngine';
 
@@ -124,8 +125,9 @@ export default function RootLayout() {
           </Stack>
           <FloatingRestTimer />
           <SyncDetailsModal />
-          <Toast />
         </AuthGate>
+        <Toast />
+        <ConfirmModal />
       </QueryClientProvider>
     </SafeAreaProvider>
   );

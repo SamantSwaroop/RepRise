@@ -1,4 +1,6 @@
 import { Alert, Platform } from 'react-native';
+import { useConfirmStore } from '../stores/confirmStore';
+import { toast } from '../stores/toastStore';
 
 if (Platform.OS === 'web') {
   Alert.alert = (
@@ -6,28 +8,35 @@ if (Platform.OS === 'web') {
     message?: string,
     buttons?: Array<{ text?: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' | string }>
   ) => {
-    const textContent = [title, message].filter(Boolean).join('\n\n');
-
-    // Single action alert (e.g. Alert.alert('Error', 'Message'))
+    // Single-action notification alert (e.g. Alert.alert('Error', 'Something went wrong'))
     if (!buttons || buttons.length <= 1) {
-      if (typeof window !== 'undefined') {
-        window.alert(textContent);
+      const text = [title, message].filter(Boolean).join(': ');
+      if (title.toLowerCase().includes('error') || title.toLowerCase().includes('fail')) {
+        toast.error(text || 'An error occurred');
+      } else {
+        toast.info(text || title);
       }
       buttons?.[0]?.onPress?.();
       return;
     }
 
-    // Multi-action confirmation alert (e.g. Cancel vs Log Out / Delete / Complete)
-    const cancelButton = buttons.find((b) => b.style === 'cancel');
-    const actionButton = buttons.find((b) => b.style !== 'cancel') || buttons[buttons.length - 1];
+    // Multi-action confirmation dialog (e.g. Log Out, Delete, Complete Workout)
+    const cancelButton = buttons.find((b) => b.style === 'cancel') || (buttons.length > 1 ? buttons[0] : undefined);
+    const actionButton =
+      buttons.find((b) => b.style !== 'cancel' && b !== cancelButton) || buttons[buttons.length - 1];
 
-    if (typeof window !== 'undefined') {
-      const confirmed = window.confirm(textContent);
-      if (confirmed) {
-        actionButton?.onPress?.();
-      } else {
+    useConfirmStore.getState().showConfirm({
+      title,
+      message,
+      confirmText: actionButton?.text || 'Confirm',
+      cancelText: cancelButton?.text || 'Cancel',
+      isDestructive: actionButton?.style === 'destructive',
+      onConfirm: async () => {
+        await actionButton?.onPress?.();
+      },
+      onCancel: () => {
         cancelButton?.onPress?.();
-      }
-    }
+      },
+    });
   };
 }
