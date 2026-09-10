@@ -11,7 +11,7 @@
     "dev:mobile": "pnpm --filter @reprise/mobile start",
     "dev:web": "pnpm --filter @reprise/mobile web",
     "dev:api": "pnpm --filter @reprise/api dev",
-    "build:web": "pnpm --filter @reprise/mobile build:web",
+    "build:web": "pnpm --filter @reprise/shared build && pnpm --filter @reprise/mobile build:web",
     "lint": "pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test"
