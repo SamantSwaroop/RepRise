@@ -84,10 +84,14 @@ export function FloatingRestTimer() {
   );
 }
 
+const isIOSDevice =
+  Platform.OS === 'ios' ||
+  (Platform.OS === 'web' && typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent));
+
 const styles = StyleSheet.create({
   floatingContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 96 : 80,
+    bottom: isIOSDevice ? 98 : 80,
     left: spacing.md,
     right: spacing.md,
     alignItems: 'center',

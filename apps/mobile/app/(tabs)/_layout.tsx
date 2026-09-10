@@ -1,9 +1,26 @@
+import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography } from '../../src/theme/tokens';
 import { SyncStatusBadge } from '../../src/components/SyncStatusBadge';
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const isWeb = Platform.OS === 'web';
+  const isIOS =
+    Platform.OS === 'ios' ||
+    (isWeb && typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent));
+
+  // iPhone home indicator is 34px. Ensure bottom padding prevents toolbar cutoff on web and native
+  const bottomPadding = isWeb
+    ? (isIOS ? 'max(env(safe-area-inset-bottom, 28px), 28px)' : 'calc(env(safe-area-inset-bottom, 0px) + 6px)')
+    : Math.max(insets.bottom, 8);
+
+  const tabHeight = isWeb
+    ? (isIOS ? 'calc(52px + max(env(safe-area-inset-bottom, 28px), 28px))' : 'calc(54px + env(safe-area-inset-bottom, 0px))')
+    : 54 + Math.max(insets.bottom, 8);
+
   return (
     <Tabs
       screenOptions={{
@@ -17,6 +34,8 @@ export default function TabLayout() {
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
           paddingTop: 6,
+          paddingBottom: bottomPadding as any,
+          height: tabHeight as any,
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
