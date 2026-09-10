@@ -91,7 +91,7 @@ const isIOSDevice =
 const styles = StyleSheet.create({
   floatingContainer: {
     position: 'absolute',
-    bottom: isIOSDevice ? 98 : 80,
+    bottom: isIOSDevice ? 106 : 80,
     left: spacing.md,
     right: spacing.md,
     alignItems: 'center',

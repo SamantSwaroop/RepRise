@@ -12,11 +12,11 @@ export default function TabLayout() {
     Platform.OS === 'ios' ||
     (isWeb && typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent));
 
-  // iPhone with Face ID requires 34px bottom inset for the home indicator bar.
-  // Note: These MUST be numbers because React Navigation's getTabBarHeight
-  // explicitly checks `typeof customHeight === 'number'` and ignores string calc() values!
-  const bottomPadding = isIOS ? 34 : Math.max(insets.bottom, 8);
-  const tabHeight = 52 + bottomPadding;
+  // iPhone home indicator takes 34px plus corner radius.
+  // We use 44px bottom padding and 96px total height so icons and labels
+  // have plenty of vertical room and are raised safely above the home bar.
+  const bottomPadding = isIOS ? 44 : Math.max(insets.bottom, 10);
+  const tabHeight = isIOS ? 96 : 56 + Math.max(insets.bottom, 10);
 
   return (
     <Tabs
@@ -31,14 +31,19 @@ export default function TabLayout() {
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
           paddingTop: 6,
-          paddingBottom: bottomPadding as any,
-          height: tabHeight as any,
+          paddingBottom: bottomPadding,
+          height: tabHeight,
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarItemStyle: {
+          paddingTop: 2,
+          paddingBottom: 0,
+        },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10.5,
           fontWeight: '600',
+          marginTop: 1,
         },
       }}
     >
