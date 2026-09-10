@@ -16,6 +16,9 @@
       "channel": "preview",
       "node": "20.19.4",
       "pnpm": "9.12.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://reprise-api-l3yn.onrender.com/api/v1"
+      },
       "android": {
         "buildType": "apk"
       },
@@ -28,6 +31,9 @@
       "autoIncrement": true,
       "node": "20.19.4",
       "pnpm": "9.12.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://reprise-api-l3yn.onrender.com/api/v1"
+      },
       "android": {
         "buildType": "app-bundle"
       },

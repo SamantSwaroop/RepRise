@@ -13,12 +13,19 @@ export function createApp() {
   app.use(cors());
   app.use(express.json());
 
-  // Routes
+  // Routes (/api/v1 and fallback root paths)
   app.use('/api/v1', healthRouter);
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/exercises', exercisesRouter);
   app.use('/api/v1/workouts', workoutsRouter);
   app.use('/api/v1/sync', syncRouter);
+
+  // Fallback aliases for clients configured without /api/v1
+  app.use('/', healthRouter);
+  app.use('/auth', authRouter);
+  app.use('/exercises', exercisesRouter);
+  app.use('/workouts', workoutsRouter);
+  app.use('/sync', syncRouter);
 
   // 404 fallback
   app.use((_req, res) => {

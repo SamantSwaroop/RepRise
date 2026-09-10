@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+const rawApiUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1').trim().replace(/\/+$/, '');
+const API_URL = rawApiUrl.endsWith('/api/v1') ? rawApiUrl : `${rawApiUrl}/api/v1`;
 
 const TOKEN_KEY = 'reprise_access_token';
 const REFRESH_KEY = 'reprise_refresh_token';
