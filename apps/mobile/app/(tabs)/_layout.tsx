@@ -12,14 +12,11 @@ export default function TabLayout() {
     Platform.OS === 'ios' ||
     (isWeb && typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent));
 
-  // iPhone home indicator is 34px. Ensure bottom padding prevents toolbar cutoff on web and native
-  const bottomPadding = isWeb
-    ? (isIOS ? 'max(env(safe-area-inset-bottom, 28px), 28px)' : 'calc(env(safe-area-inset-bottom, 0px) + 6px)')
-    : Math.max(insets.bottom, 8);
-
-  const tabHeight = isWeb
-    ? (isIOS ? 'calc(52px + max(env(safe-area-inset-bottom, 28px), 28px))' : 'calc(54px + env(safe-area-inset-bottom, 0px))')
-    : 54 + Math.max(insets.bottom, 8);
+  // iPhone with Face ID requires 34px bottom inset for the home indicator bar.
+  // Note: These MUST be numbers because React Navigation's getTabBarHeight
+  // explicitly checks `typeof customHeight === 'number'` and ignores string calc() values!
+  const bottomPadding = isIOS ? 34 : Math.max(insets.bottom, 8);
+  const tabHeight = 52 + bottomPadding;
 
   return (
     <Tabs
