@@ -141,7 +141,9 @@ export default function WorkoutSummaryScreen() {
                 return (
                   <View key={`${pr.exerciseId}-${pr.type}-${idx}`} style={styles.prCard}>
                     <View style={styles.prCardTop}>
-                      <Text style={styles.prExerciseName}>{pr.exerciseName}</Text>
+                      <Text style={styles.prExerciseName} numberOfLines={2}>
+                        {pr.exerciseName}
+                      </Text>
                       <View style={styles.prTypePill}>
                         <Text style={styles.prTypePillText}>
                           {is1RM ? 'Est. 1RM' : 'Heaviest Weight'}
@@ -380,14 +382,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
     marginBottom: 4,
   },
   prExerciseName: {
+    flex: 1,
     color: colors.textPrimary,
     fontSize: typography.body.size,
     fontWeight: '600',
   },
   prTypePill: {
+    flexShrink: 0,
     backgroundColor: '#EBCB8B22',
     paddingHorizontal: 6,
     paddingVertical: 2,

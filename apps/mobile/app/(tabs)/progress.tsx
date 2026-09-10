@@ -428,7 +428,10 @@ export default function ProgressTab() {
         ) : (
           <View style={styles.prRecordCard}>
             <View style={styles.prRecordHeader}>
-              <Text style={styles.prRecordNameActive}>
+              <Text
+                style={[styles.prRecordName, styles.prRecordNameActive]}
+                numberOfLines={2}
+              >
                 {activeExercisePR.exerciseName}
               </Text>
               <View style={styles.prMuscleBadge}>
@@ -1072,6 +1075,8 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   prCountBadge: {
+    flexShrink: 1,
+    maxWidth: '45%',
     backgroundColor: '#EBCB8B22',
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
@@ -1105,9 +1110,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
     marginBottom: spacing.sm,
   },
   prRecordName: {
+    flex: 1,
     color: colors.textPrimary,
     fontSize: typography.body.size,
     fontWeight: '600',
@@ -1116,6 +1123,7 @@ const styles = StyleSheet.create({
     color: '#EBCB8B',
   },
   prMuscleBadge: {
+    flexShrink: 0,
     backgroundColor: colors.surfaceRaised,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -1166,6 +1174,7 @@ const styles = StyleSheet.create({
   prHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
     gap: spacing.xs,
   },
   prEmptyBox: {
