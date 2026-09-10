@@ -133,7 +133,54 @@ For fully managed serverless container deployments:
 
 ---
 
-## Part 2: Mobile App Store Release (EAS Pipeline)
+## Part 2: Independent Web App (PWA) Deployment for iPhone Safari
+
+RepRise is fully configured as a standalone Progressive Web App (PWA) with native iOS Safari standalone tags (`apple-mobile-web-app-capable`, `apple-touch-icon`, `viewport-fit=cover`, theme colors, and SQLite WebAssembly support).
+
+You can deploy the web app for **free** on Vercel or Cloudflare Pages, open the URL in Safari on your iPhone, and install it directly to your home screen—**no Apple Developer account or App Store approval required**.
+
+### 1. Build the Production Web Bundle
+```bash
+# Set your production API URL
+export EXPO_PUBLIC_API_URL=https://api.yourdomain.com/api/v1
+
+# Build the static web app (outputs to apps/mobile/dist)
+pnpm build:web
+```
+
+### 2. Deploy to Cloudflare Pages (Recommended - Free & Fast)
+1. In Cloudflare Dashboard -> **Workers & Pages** -> **Create application** -> **Pages**.
+2. Connect your Git repository.
+3. Set the build settings:
+   - **Framework preset**: `None`
+   - **Build command**: `pnpm build:web`
+   - **Build output directory**: `apps/mobile/dist`
+   - **Root directory**: `/`
+4. Add Environment Variable:
+   - `EXPO_PUBLIC_API_URL`: Your live backend API URL (e.g., `https://api.reprise.fit/api/v1` or Render URL).
+5. Deploy! (Security headers for SQLite WASM are automatically applied from `apps/mobile/public/_headers`).
+
+### 3. Deploy to Vercel (Alternative - Free)
+1. Import your GitHub repository on Vercel.
+2. Set Root Directory to `apps/mobile`.
+3. Set Build Command to `npx expo export -p web` and Output Directory to `dist`.
+4. Add Environment Variable `EXPO_PUBLIC_API_URL`.
+5. Deploy! (Routing rewrites and COOP/COEP headers are automatically applied from `apps/mobile/vercel.json`).
+
+### 4. Install RepRise on iPhone (Safari)
+1. On your iPhone, open **Safari** and navigate to your deployed HTTPS URL (e.g. `https://reprise.pages.dev`).
+2. Tap the **Share** button (the square with an arrow pointing upward at the bottom of Safari).
+3. Scroll down and tap **"Add to Home Screen"**.
+4. Confirm the name **RepRise** and tap **Add** in the top right.
+5. An app icon will appear on your iPhone home screen!
+6. When opened from your home screen:
+   - It runs in **standalone mode** (no Safari URL bar, bottom navigation bar, or browser chrome).
+   - It runs full screen with your custom dark theme and status bar.
+   - It stores workout sessions locally on your device with offline guest mode and syncs to your backend when online.
+
+---
+
+## Part 3: Native Mobile App Store Release (EAS Pipeline)
 
 RepRise uses Expo Application Services (EAS) for cloud-native binary compilation and store submission.
 

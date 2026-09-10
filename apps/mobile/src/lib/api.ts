@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const rawApiUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1').trim().replace(/\/+$/, '');
@@ -9,19 +10,45 @@ const REFRESH_KEY = 'reprise_refresh_token';
 // ─── Token Storage ─────────────────────────────────────────────────
 
 export async function getStoredAccessToken(): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(TOKEN_KEY);
+    }
+    return null;
+  }
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 
 export async function getStoredRefreshToken(): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(REFRESH_KEY);
+    }
+    return null;
+  }
   return SecureStore.getItemAsync(REFRESH_KEY);
 }
 
 export async function storeTokens(accessToken: string, refreshToken: string) {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(TOKEN_KEY, accessToken);
+      window.localStorage.setItem(REFRESH_KEY, refreshToken);
+    }
+    return;
+  }
   await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
   await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
 }
 
 export async function clearTokens() {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(TOKEN_KEY);
+      window.localStorage.removeItem(REFRESH_KEY);
+    }
+    return;
+  }
   await SecureStore.deleteItemAsync(TOKEN_KEY);
   await SecureStore.deleteItemAsync(REFRESH_KEY);
 }

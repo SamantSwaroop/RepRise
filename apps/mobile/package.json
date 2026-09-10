@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --passWithNoTests",
     "export": "expo export",
+    "build:web": "expo export -p web",
     "build:preview:android": "eas build -p android --profile preview",
     "build:production": "eas build -p all --profile production"
   },
@@ -41,6 +42,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "^15.15.5",
+    "react-native-web": "^0.21.2",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

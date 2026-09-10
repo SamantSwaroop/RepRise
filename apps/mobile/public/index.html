@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1.00001, viewport-fit=cover, user-scalable=no"
+    />
+    <title>%WEB_TITLE%</title>
+
+    <!-- iOS Safari Standalone PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="RepRise" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+
+    <!-- Application Theme & PWA Manifest -->
+    <meta name="theme-color" content="#2E3440" />
+    <meta name="description" content="RepRise — Minimalist, offline-first workout tracking" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #2E3440;
+        -webkit-touch-callout: none;
+        overscroll-behavior-y: none;
+      }
+      body {
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+        background-color: #2E3440;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>
+      You need to enable JavaScript to run RepRise.
+    </noscript>
+    <div id="root"></div>
+  </body>
+</html>

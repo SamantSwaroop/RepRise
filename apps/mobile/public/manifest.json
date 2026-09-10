@@ -1,0 +1,24 @@
+{
+  "short_name": "RepRise",
+  "name": "RepRise — Minimalist Workout Tracker",
+  "description": "Track every rep, beat your best. Minimalist, offline-first workout tracking.",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "1024x1024",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "48x48"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#2E3440",
+  "theme_color": "#2E3440",
+  "display": "standalone",
+  "orientation": "portrait"
+}

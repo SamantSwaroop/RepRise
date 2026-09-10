@@ -15,3 +15,23 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+
+  - type: web
+    name: reprise-web
+    runtime: static
+    buildCommand: pnpm build:web
+    staticPublishPath: ./apps/mobile/dist
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        value: https://reprise-api-l3yn.onrender.com/api/v1
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin
+      - path: /*
+        name: Cross-Origin-Embedder-Policy
+        value: credentialless

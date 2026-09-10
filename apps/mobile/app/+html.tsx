@@ -1,0 +1,46 @@
+import { ScrollViewStyleReset } from 'expo-router/html';
+import type { PropsWithChildren } from 'react';
+
+export default function Root({ children }: PropsWithChildren) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1.00001, viewport-fit=cover, user-scalable=no"
+        />
+
+        {/* iOS Safari Standalone PWA Meta Tags */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="RepRise" />
+        <link rel="apple-touch-icon" href="/icon.png" />
+
+        {/* Application Theme & PWA Manifest */}
+        <meta name="theme-color" content="#2E3440" />
+        <meta name="description" content="RepRise - Minimalist, offline-first workout tracking" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
+
+        {/* Disable body scrolling behavior and reset for web view */}
+        <ScrollViewStyleReset />
+
+        <style dangerouslySetInnerHTML={{ __html: pwaStyles }} />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+
+const pwaStyles = `
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #2E3440;
+  -webkit-touch-callout: none;
+  overscroll-behavior-y: none;
+}
+`;

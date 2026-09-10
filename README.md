@@ -115,6 +115,12 @@ pnpm dev:mobile
 # Press `i` for iOS simulator, `a` for Android, or scan the QR code with Expo Go.
 ```
 
+**Web app:**
+```bash
+pnpm dev:web
+# Automatically starts Metro and opens http://localhost:8081 in your browser.
+```
+
 **Database (PostgreSQL via Docker):**
 ```bash
 docker compose up -d
