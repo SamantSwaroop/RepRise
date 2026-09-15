@@ -1,13 +1,10 @@
 /**
  * RepRise design tokens — Nord-inspired dark theme.
  *
- * Type direction (see Phase 12 for actual font loading via expo-font —
- * system font is used until then, since custom font files need a real
- * network connection to fetch, which isn't available while scaffolding):
- *   - Display / numeric (weights, reps, big stats): Space Grotesk —
- *     a slightly mechanical grotesque that suits a performance/data app
- *     and has clean tabular figures so columns of numbers align.
- *   - Body / UI chrome: Inter — highly legible at small sizes.
+ * Typography hierarchy:
+ *   - Display / numeric (weights, reps, metrics): Tabular figures suitable
+ *     for aligned performance stats.
+ *   - Body / UI chrome: Highly legible sans-serif for mobile readability.
  */
 
 export const colors = {

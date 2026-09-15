@@ -7,7 +7,7 @@ import {
   PRESET_REST_DURATIONS,
 } from '@reprise/shared';
 
-describe('Phase 9: Rest Timer & Utilities', () => {
+describe('Rest Timer & Utilities', () => {
   describe('formatTimerSeconds', () => {
     it('formats zero seconds as 00:00', () => {
       expect(formatTimerSeconds(0)).toBe('00:00');

@@ -478,7 +478,7 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <View style={styles.diagnosticRow}>
           <Text style={styles.diagnosticLabel}>Version</Text>
-          <Text style={styles.diagnosticVal}>v0.1.0 (Phase 11)</Text>
+          <Text style={styles.diagnosticVal}>v1.0.0</Text>
         </View>
         <View style={styles.diagnosticRow}>
           <Text style={styles.diagnosticLabel}>Architecture</Text>

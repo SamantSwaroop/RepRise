@@ -10,7 +10,7 @@ import {
   LBS_PER_KG,
 } from '@reprise/shared';
 
-describe('Phase 11: Units & Data Export Utilities', () => {
+describe('Units & Data Export Utilities', () => {
   describe('Unit Conversions', () => {
     it('converts kg to lbs accurately with 1 decimal precision', () => {
       expect(kgToLbs(0)).toBe(0);

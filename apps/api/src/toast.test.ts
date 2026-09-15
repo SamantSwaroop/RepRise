@@ -6,7 +6,7 @@ import {
   formatTemplateSavedToast,
 } from '@reprise/shared';
 
-describe('Phase 12: Polish & Toast Notifications', () => {
+describe('Toast Notifications & Schemas', () => {
   describe('Toast Schemas', () => {
     it('validates supported toast types', () => {
       expect(toastTypeSchema.safeParse('success').success).toBe(true);

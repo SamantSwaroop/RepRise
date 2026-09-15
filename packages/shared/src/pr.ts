@@ -1,4 +1,4 @@
-// ─── Phase 7: Personal Record (PR) Types & Logic ─────────────────────
+// ─── Personal Record (PR) Types & Business Logic ──────────────────────
 
 export type PRType = '1rm' | 'weight';
 

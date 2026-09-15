@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 
-// In Phase 3+, queryFns here read from the local SQLite repository layer
-// (offline-first), not directly from the network.
+// Query functions read from the local SQLite repository layer (offline-first),
+// decoupling UI reads from network latency.
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
